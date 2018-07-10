@@ -3,6 +3,7 @@
 
 MonitorTestTool::MonitorTestTool(QWidget *parent)
 	: QDialog(parent)//QMainWindow(parent)
+	, isOpened(true)
 	, serialPortLabel(new QLabel(tr("端口号: ")))
 	, serialPortComboBox(new QComboBox())
 	, baudRateLabel(new QLabel(tr("波特率: ")))
@@ -18,7 +19,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, receiveTextEdit(new QTextEdit(tr("准备中......")))
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
-	, rfile(RecordFile)
+	//, rfile(RecordFile)
 {
 //	ui.setupUi(this);
 
@@ -34,32 +35,23 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	setLayout(leftLayout);
 
 	
-
-	//recordThread = new QThread();
-	//recordTimer = new QTimer();
-	//recordTimer->setInterval(1000);
-	//recordTimer->start(2000);
-	//recordTimer->moveToThread(recordThread);
-	//connect(recordTimer, SIGNAL(timeout()), this, SLOT(recordTimeout()), Qt::DirectConnection);
-	//connect(this, SIGNAL(stop()), recordTimer, SLOT(stop()));
-	//recordThread->start();
-
+	
+	
+	
+	initWidgetsStyle();
 	initWidgetsConnections();
+	
+
+	//emit debugUpdate(quintptr(QThread::currentThreadId()), tr("MonitorTestTool"));
+	//QMessageBox::critical(this, tr("Critical Test"), tr("[%1]MonitorTestTool").arg(quintptr(QThread::currentThreadId())));
 }
 
 MonitorTestTool::~MonitorTestTool()
 {
-	emit stop();
-	//recordThread->quit();
-	//recordThread->wait();
-	//delete recordTimer;
-	//delete recordThread;
-
 	closeSerialPort();
 	delete serial;
-
-	if (rfile.isOpen())
-		rfile.close();
+	serial = Q_NULLPTR;
+	deleteWidgets();
 }
 
 void MonitorTestTool::filterChanged(const QString &ret)
@@ -93,39 +85,83 @@ void MonitorTestTool::openSerialPort()
 		runButton->setEnabled(false);
 		stopButton->setEnabled(true);
 
-		QtConcurrent::run(this, &MonitorTestTool::readData);		
+		runThread();				
 	}
 	else {
 		QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败!").arg(portName));
-		
+		statusBar->showMessage(tr("open serial port failed!\n"));
 	}
 }
 
 void MonitorTestTool::closeSerialPort()
 {
-	if (serial->isOpen()) {
+	if (serial && serial->isOpen()) {
 		isOpened = false;
 		serial->close();		
 	}		
-	runButton->setEnabled(true);
-	stopButton->setEnabled(false);
+	if (runButton) {
+		runButton->setEnabled(true);
+		stopButton->setEnabled(false);
+	}
 }
 
-void MonitorTestTool::recordTimeout()
-{
-	QString strWriting("");
-	{
-		QMutexLocker locker(&recordMutex);
-		record.swap(strWriting);
-	}
-	
-	if (!rfile.open(QIODevice::ReadWrite | QIODevice::Text)) {
-		QMessageBox::critical(this, tr("critical error"), tr("Open %1 failed!").arg(RecordFile));
-		qDebug() << strWriting;
-	}
+void MonitorTestTool::recordData()
+{	
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData"));
+	QFile rfile(RecordFile);
 
-	QTextStream in(&rfile);
-	in << strWriting;
+	while (isOpened) { // while (isOpened || !record.isEmpty())
+		try {			
+			// 每隔 2s 写一次文件
+			QThread::sleep(2);
+			
+			//QString strWriting("");
+			//{
+			//	QMutexLocker locker(&recordMutex);
+			//	record.swap(strWriting);
+			//}
+			qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+			QStringList list = { "one", "two", "three" };
+			qint32 cur = qrand() % 3;
+			QString strWriting = QTime::currentTime().toString(tr("hh:mm:ss "));
+			strWriting.push_back(list[cur]);
+			strWriting.push_back(tr("\n"));
+
+			if (!rfile.isOpen()) {
+				if (!rfile.open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Append)) {
+					QMessageBox::critical(this, tr("critical error"), tr("Open %1 failed!").arg(RecordFile));
+					statusBar->showMessage(strWriting);
+				}
+			}
+			
+			
+			if (rfile.isOpen()) {
+				QTextStream out(&rfile);
+				out << strWriting;
+			}
+		}
+		catch (...) {
+			emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData error"));
+		}
+
+	}
+	if (rfile.isOpen())
+		rfile.close();
+}
+
+void MonitorTestTool::debugTips(qint64 tid, const QString &where)
+{
+	//QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
+	if (statusBar) {
+		statusBar->clearMessage();
+		statusBar->showMessage(tr("%1 thread is %2.").arg(where).arg(tid), 4000);
+	}
+}
+
+void MonitorTestTool::showData(const QString &data)
+{
+	receiveTextEdit->moveCursor(QTextCursor::Start);
+	receiveTextEdit->insertPlainText(data);
 }
 
 void MonitorTestTool::readData()
@@ -137,19 +173,37 @@ void MonitorTestTool::readData()
 	}
 }
 
-void MonitorTestTool::handleReceivedData()
-{
-	QString data;
-	while (queue.Pop(data)) {
-		receiveTextEdit->moveCursor(QTextCursor::Start);
-		receiveTextEdit->insertPlainText(data);		
+void MonitorTestTool::handleData()
+{	
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData"));
 
-		{
-			QMutexLocker locker(&recordMutex);
-			record.append(data);
+	QString data;
+	do 
+	{
+		while (queue.Pop(data, false)) {
+			emit sendData(data);
+
+			{
+				QMutexLocker locker(&recordMutex);
+				record.append(data);
+			}
+
 		}
-		
-	}
+	} while (isOpened || !queue.Empty());
+	
+}
+
+void MonitorTestTool::closeEvent(QCloseEvent *e)
+{
+	//isOpened = false;
+	//retRead.pause();
+	//retRecord.waitForFinished();
+	//retHandle.pause();
+
+	closeSerialPort();
+	delete serial;
+	serial = Q_NULLPTR;
+	deleteWidgets();
 }
 
 QGroupBox * MonitorTestTool::createSettingsGroup()
@@ -214,10 +268,71 @@ QGroupBox * MonitorTestTool::createReceiveGroup()
 	return receiveGropBox;
 }
 
+QGroupBox * MonitorTestTool::createOpeningGroup()
+{
+	auto openingGroupBox = new QGroupBox(tr("导入数据"));
+
+	return openingGroupBox;
+}
+
 void MonitorTestTool::initWidgetsConnections()
 {
 	connect(parityComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
 		this, &MonitorTestTool::filterChanged);
 	connect(runButton, &QPushButton::clicked, this, &MonitorTestTool::openSerialPort);
 	connect(stopButton, &QPushButton::clicked, this, &MonitorTestTool::closeSerialPort);
+	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));	
+	connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
 }
+
+void MonitorTestTool::initWidgetsStyle()
+{
+	statusBar->setStyleSheet("QStatusBar{ \
+		border: 1px solid lightgray; \
+		padding: 0px; \
+		color: rgb(0, 139, 139); \
+	}");
+}
+
+void MonitorTestTool::deleteWidgets()
+{
+	delete serialPortLabel;
+	delete baudRateLabel;
+	delete dataBitsLabel;
+	delete stopBitsLabel;
+	delete parityLabel;
+	delete serialPortComboBox;
+	delete baudRateComboBox;
+	delete dataBitsComboBox;
+	delete stopBitsComboBox;
+	delete parityComboBox;
+
+	delete runButton;
+	delete stopButton;
+	delete receiveTextEdit;
+	delete statusBar;
+
+	serialPortLabel = Q_NULLPTR;
+	baudRateLabel = Q_NULLPTR;
+	dataBitsLabel = Q_NULLPTR;
+	stopBitsLabel = Q_NULLPTR;
+	parityLabel = Q_NULLPTR;
+	serialPortComboBox = Q_NULLPTR;
+	baudRateComboBox = Q_NULLPTR;
+	dataBitsComboBox = Q_NULLPTR;
+	stopBitsComboBox = Q_NULLPTR;
+	parityComboBox = Q_NULLPTR;
+
+	runButton = Q_NULLPTR;
+	stopButton = Q_NULLPTR;
+	receiveTextEdit = Q_NULLPTR;
+	statusBar = Q_NULLPTR;
+}
+
+void MonitorTestTool::runThread()
+{
+	retRead = QtConcurrent::run(this, &MonitorTestTool::readData);
+	retRecord = QtConcurrent::run(this, &MonitorTestTool::recordData);
+	retHandle = QtConcurrent::run(this, &MonitorTestTool::handleData);
+}
+

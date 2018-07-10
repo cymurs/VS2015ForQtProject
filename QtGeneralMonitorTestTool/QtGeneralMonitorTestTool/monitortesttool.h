@@ -9,7 +9,8 @@ class MonitorTestTool : public QDialog//QMainWindow
 	Q_OBJECT
 
 Q_SIGNALS:
-	void stop();
+	void debugUpdate(qint64, const QString &);
+	void sendData(const QString &);
 
 public:
 	MonitorTestTool(QWidget *parent = Q_NULLPTR);
@@ -19,16 +20,24 @@ public Q_SLOTS:
 	void filterChanged(const QString &);
 	void openSerialPort();
 	void closeSerialPort();
-	void recordTimeout();
+	void debugTips(qint64, const QString &);
+	void showData(const QString &);
 
 protected:
 	void readData();
-	void handleReceivedData();
+	void recordData();
+	void handleData();
+	void closeEvent(QCloseEvent *);
 
 private:
 	QGroupBox *createSettingsGroup();
 	QGroupBox *createReceiveGroup();
+	QGroupBox *createOpeningGroup();
 	void initWidgetsConnections();
+	void initWidgetsStyle();
+	void deleteWidgets();
+	void runThread();
+
 
 private:
 //	Ui::MonitorTestToolClass ui;
@@ -53,8 +62,11 @@ private:
 
 	QString record;
 	QMutex recordMutex;
-	QFile rfile;
+	QWaitCondition recordCondition;
 
-	QThread *recordThread;
-	QTimer *recordTimer;
+	QFuture<void> retRead;
+	QFuture<void> retRecord;
+	QFuture<void> retHandle;
+	//QThread *timerThread;
+	//QTimer *recordTimer;
 };
