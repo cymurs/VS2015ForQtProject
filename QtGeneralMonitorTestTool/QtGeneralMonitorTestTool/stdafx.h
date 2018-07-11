@@ -1,4 +1,7 @@
 #include <QtWidgets>
+#include <QtCharts/QChart>
+#include <QtCharts/QChartView>
+#include <QtCharts/QSplineSeries>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QtConcurrent/QtConcurrent>

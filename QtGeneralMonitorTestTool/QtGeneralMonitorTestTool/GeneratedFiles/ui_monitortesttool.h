@@ -22,6 +22,7 @@
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QStatusBar>
+#include <QtWidgets/QTextBrowser>
 #include <QtWidgets/QTextEdit>
 #include <QtWidgets/QToolBar>
 #include <QtWidgets/QVBoxLayout>
@@ -48,6 +49,9 @@ public:
     QLabel *label_5;
     QComboBox *comboBox_5;
     QPushButton *pushButton;
+    QGroupBox *groupBox_3;
+    QLabel *label_6;
+    QTextBrowser *textBrowser;
     QGroupBox *groupBox_2;
     QTextEdit *textEdit;
     QVBoxLayout *verticalLayout_2;
@@ -111,17 +115,22 @@ public:
 
         verticalLayout_3->addWidget(groupBox);
 
+        groupBox_3 = new QGroupBox(horizontalLayoutWidget);
+        groupBox_3->setObjectName(QStringLiteral("groupBox_3"));
+        label_6 = new QLabel(groupBox_3);
+        label_6->setObjectName(QStringLiteral("label_6"));
+        label_6->setGeometry(QRect(30, 30, 54, 12));
+        textBrowser = new QTextBrowser(groupBox_3);
+        textBrowser->setObjectName(QStringLiteral("textBrowser"));
+        textBrowser->setGeometry(QRect(20, 60, 256, 71));
+
+        verticalLayout_3->addWidget(groupBox_3);
+
         groupBox_2 = new QGroupBox(horizontalLayoutWidget);
         groupBox_2->setObjectName(QStringLiteral("groupBox_2"));
         textEdit = new QTextEdit(groupBox_2);
         textEdit->setObjectName(QStringLiteral("textEdit"));
         textEdit->setGeometry(QRect(20, 30, 291, 181));
-        textEdit->raise();
-        groupBox->raise();
-        groupBox->raise();
-        groupBox->raise();
-        groupBox->raise();
-        groupBox->raise();
 
         verticalLayout_3->addWidget(groupBox_2);
 
@@ -144,7 +153,6 @@ public:
         mainToolBar = new QToolBar(MonitorTestToolClass);
         mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
         MonitorTestToolClass->addToolBar(Qt::TopToolBarArea, mainToolBar);
-        MonitorTestToolClass->insertToolBarBreak(mainToolBar);
         statusBar = new QStatusBar(MonitorTestToolClass);
         statusBar->setObjectName(QStringLiteral("statusBar"));
         MonitorTestToolClass->setStatusBar(statusBar);
@@ -164,6 +172,8 @@ public:
         label_4->setText(QApplication::translate("MonitorTestToolClass", "\345\201\234\346\255\242\344\275\215\357\274\232", Q_NULLPTR));
         label_5->setText(QApplication::translate("MonitorTestToolClass", "\346\240\241\351\252\214\344\275\215\357\274\232", Q_NULLPTR));
         pushButton->setText(QApplication::translate("MonitorTestToolClass", "\346\211\223\345\274\200\344\270\262\345\217\243", Q_NULLPTR));
+        groupBox_3->setTitle(QApplication::translate("MonitorTestToolClass", "\345\257\274\345\205\245\346\225\260\346\215\256", Q_NULLPTR));
+        label_6->setText(QApplication::translate("MonitorTestToolClass", "TextLabel", Q_NULLPTR));
         groupBox_2->setTitle(QApplication::translate("MonitorTestToolClass", "\346\216\245\346\224\266\346\225\260\346\215\256", Q_NULLPTR));
     } // retranslateUi
 

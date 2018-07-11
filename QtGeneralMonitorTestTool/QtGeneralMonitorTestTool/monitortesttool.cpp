@@ -16,10 +16,16 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, parityComboBox(new QComboBox())
 	, runButton(new QPushButton(tr("打开串口")))
 	, stopButton(new QPushButton(tr("停止")))
+	, dataFileLabel(new QLabel(tr("数据源位置:")))
+	, dataFileLineEdit(new QLineEdit())
+	, selectButton(new QPushButton(tr("浏览...")))
+	, confirmButton(new QPushButton(tr("导入")))
+	, cancelButton(new QPushButton(tr("清空")))
 	, receiveTextEdit(new QTextEdit(tr("准备中......")))
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
-	//, rfile(RecordFile)
+	, dataFile("")
+	, dataTable(generateRandomData())
 {
 //	ui.setupUi(this);
 
@@ -30,11 +36,18 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 
 	auto leftLayout = new QVBoxLayout();
 	leftLayout->addWidget(createSettingsGroup());
-	leftLayout->addWidget(createReceiveGroup());
-	leftLayout->addWidget(statusBar);
-	setLayout(leftLayout);
+	leftLayout->addWidget(createImportGroup());
+	leftLayout->addWidget(createReceiveGroup());	
+	leftLayout->addWidget(statusBar);	
 
-	
+
+	auto baseLayout = new QGridLayout();
+	baseLayout->addLayout(leftLayout, 0, 0);
+	baseLayout->addWidget(createChartGroup(), 0, 1);
+	// 设置拉升时固定比例
+	baseLayout->setColumnStretch(0, 1);
+	baseLayout->setColumnStretch(1, 4);
+	setLayout(baseLayout);
 	
 	
 	
@@ -83,6 +96,8 @@ void MonitorTestTool::openSerialPort()
 	if (serial->open(QIODevice::ReadWrite)) {
 		isOpened = true;
 		runButton->setEnabled(false);
+		confirmButton->setEnabled(false);
+		cancelButton->setEnabled(false);
 		stopButton->setEnabled(true);
 
 		runThread();				
@@ -101,8 +116,59 @@ void MonitorTestTool::closeSerialPort()
 	}		
 	if (runButton) {
 		runButton->setEnabled(true);
+		confirmButton->setEnabled(true);
+		cancelButton->setEnabled(true);
 		stopButton->setEnabled(false);
 	}
+}
+
+void MonitorTestTool::selectFile()
+{
+	dataFile = QFileDialog::getOpenFileName(this, tr("数据源位置"), 
+		QDir::currentPath(), tr("CSV files (*.csv);;Text files (*.txt)"));
+	dataFileLineEdit->setText(dataFile);
+}
+
+void MonitorTestTool::runImport()
+{
+	if (dataFile.isEmpty()) return;
+	if (!QFile::exists(dataFile)) {
+		QMessageBox::critical(this, tr("警告"), tr("%1 不存在, 请重新选择").arg(dataFile));
+		selectButton->setFocus();
+		return;
+	}
+
+	QFile file(dataFile);	
+	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		statusBar->showMessage(tr("打开%1失败!").arg(dataFile));
+		QMessageBox::critical(this, tr("警告"), tr("打开%1失败!").arg(dataFile));
+		return;
+	}
+
+	//receiveTextEdit->clear();
+
+	QTextStream in(&file);
+	QString line;
+	while (in.readLineInto(&line)) {
+		//if (line.isEmpty()) continue;
+		line.append('\n');
+		showData(line);
+	}
+
+	in.flush();
+	file.close();
+
+	showMessage(tr("导入完成!"));
+}
+
+void MonitorTestTool::cancelImport()
+{
+	if (dataFile.isEmpty())  return;
+	receiveTextEdit->clear();
+	dataFileLineEdit->clear();
+	dataFile.clear();
+	selectButton->setFocus();
+
 }
 
 void MonitorTestTool::recordData()
@@ -164,6 +230,11 @@ void MonitorTestTool::showData(const QString &data)
 	receiveTextEdit->insertPlainText(data);
 }
 
+void MonitorTestTool::showMessage(const QString &s)
+{
+	statusBar->showMessage(s);
+}
+
 void MonitorTestTool::readData()
 {
 	while (isOpened) {
@@ -195,15 +266,34 @@ void MonitorTestTool::handleData()
 
 void MonitorTestTool::closeEvent(QCloseEvent *e)
 {
-	//isOpened = false;
-	//retRead.pause();
-	//retRecord.waitForFinished();
-	//retHandle.pause();
-
 	closeSerialPort();
 	delete serial;
 	serial = Q_NULLPTR;
 	deleteWidgets();
+}
+
+DataTable MonitorTestTool::generateRandomData(int listCount, int valueMax, int valueCount) const
+{
+	DataTable dataTable;
+
+	// set seed for random stuff
+	qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+
+	// generate random data
+	for (int i(0); i < listCount; i++) {
+		DataList dataList;
+		qreal yValue(0);
+		for (int j(0); j < valueCount; j++) {
+			yValue = yValue + (qreal)(qrand() % valueMax) / (qreal)valueCount;
+			QPointF value((j + (qreal)rand() / (qreal)RAND_MAX) * ((qreal)20 / (qreal)valueCount),
+				yValue);
+			QString label = "Slice " + QString::number(i) + ":" + QString::number(j);
+			dataList << Data(value, label);
+		}
+		dataTable << dataList;
+	}
+
+	return dataTable;
 }
 
 QGroupBox * MonitorTestTool::createSettingsGroup()
@@ -268,11 +358,49 @@ QGroupBox * MonitorTestTool::createReceiveGroup()
 	return receiveGropBox;
 }
 
-QGroupBox * MonitorTestTool::createOpeningGroup()
+QGroupBox * MonitorTestTool::createImportGroup()
 {
+	auto importLayout = new QGridLayout;
+	importLayout->addWidget(dataFileLabel, 0, 0);
+	importLayout->addWidget(dataFileLineEdit, 1, 0, 1, 3);
+	importLayout->addWidget(selectButton, 1, 3);
+	importLayout->addWidget(confirmButton, 2, 2);
+	importLayout->addWidget(cancelButton, 2, 3);
+	
 	auto openingGroupBox = new QGroupBox(tr("导入数据"));
+	openingGroupBox->setLayout(importLayout);
 
 	return openingGroupBox;
+}
+
+QGroupBox *MonitorTestTool::createChartGroup()
+{
+	// spine chart
+	splineChart = new QChart();
+	splineChart->setTitle("serial port spline chart");
+	QString name("Series ");
+	int nameIndex = 0;
+	foreach(DataList list, dataTable) {
+		QSplineSeries *series = new QSplineSeries(splineChart);
+		foreach(Data data, list)
+			series->append(data.first);
+		series->setName(name + QString::number(nameIndex));
+		nameIndex++;
+		splineChart->addSeries(series);
+	}
+	splineChart->createDefaultAxes();
+
+	auto splineView = new QChartView(splineChart);
+	splineView->setRenderHint(QPainter::Antialiasing); // 图像抗锯齿
+	splineView->setSceneRect(0, 0, 630, 280);	 // 设置初始图表大小
+
+	auto chartLayout = new QVBoxLayout;
+	chartLayout->addWidget(splineView);
+
+	auto chartGroupBox = new QGroupBox(tr("实时数据曲线图"));
+	chartGroupBox->setLayout(chartLayout);
+	chartGroupBox->setMinimumSize(400, 450); // 设置图表展示最小值
+	return chartGroupBox;
 }
 
 void MonitorTestTool::initWidgetsConnections()
@@ -281,6 +409,9 @@ void MonitorTestTool::initWidgetsConnections()
 		this, &MonitorTestTool::filterChanged);
 	connect(runButton, &QPushButton::clicked, this, &MonitorTestTool::openSerialPort);
 	connect(stopButton, &QPushButton::clicked, this, &MonitorTestTool::closeSerialPort);
+	connect(selectButton, &QPushButton::clicked, this, &MonitorTestTool::selectFile);
+	connect(confirmButton, &QPushButton::clicked, this, &MonitorTestTool::runImport);
+	connect(cancelButton, &QPushButton::clicked, this, &MonitorTestTool::cancelImport);
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));	
 	connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
 }
@@ -306,9 +437,15 @@ void MonitorTestTool::deleteWidgets()
 	delete dataBitsComboBox;
 	delete stopBitsComboBox;
 	delete parityComboBox;
-
 	delete runButton;
 	delete stopButton;
+
+	delete dataFileLabel;
+	delete dataFileLineEdit;
+	delete selectButton;
+	delete confirmButton;
+	delete cancelButton;
+
 	delete receiveTextEdit;
 	delete statusBar;
 
@@ -322,17 +459,23 @@ void MonitorTestTool::deleteWidgets()
 	dataBitsComboBox = Q_NULLPTR;
 	stopBitsComboBox = Q_NULLPTR;
 	parityComboBox = Q_NULLPTR;
-
 	runButton = Q_NULLPTR;
 	stopButton = Q_NULLPTR;
+
+	dataFileLabel = Q_NULLPTR;
+	dataFileLineEdit = Q_NULLPTR;
+	selectButton = Q_NULLPTR;
+	confirmButton = Q_NULLPTR;
+	cancelButton = Q_NULLPTR;
+
 	receiveTextEdit = Q_NULLPTR;
 	statusBar = Q_NULLPTR;
 }
 
 void MonitorTestTool::runThread()
 {
-	retRead = QtConcurrent::run(this, &MonitorTestTool::readData);
-	retRecord = QtConcurrent::run(this, &MonitorTestTool::recordData);
-	retHandle = QtConcurrent::run(this, &MonitorTestTool::handleData);
+	QtConcurrent::run(this, &MonitorTestTool::readData);
+	QtConcurrent::run(this, &MonitorTestTool::recordData);
+	QtConcurrent::run(this, &MonitorTestTool::handleData);
 }
 

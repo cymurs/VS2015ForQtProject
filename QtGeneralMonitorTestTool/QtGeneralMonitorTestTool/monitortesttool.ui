@@ -162,6 +162,36 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="groupBox_3">
+         <property name="title">
+          <string>导入数据</string>
+         </property>
+         <widget class="QLabel" name="label_6">
+          <property name="geometry">
+           <rect>
+            <x>30</x>
+            <y>30</y>
+            <width>54</width>
+            <height>12</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+         <widget class="QTextBrowser" name="textBrowser">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>60</y>
+            <width>256</width>
+            <height>71</height>
+           </rect>
+          </property>
+         </widget>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
           <string>接收数据</string>
@@ -176,12 +206,6 @@
            </rect>
           </property>
          </widget>
-         <zorder>textEdit</zorder>
-         <zorder>groupBox</zorder>
-         <zorder>groupBox</zorder>
-         <zorder>groupBox</zorder>
-         <zorder>groupBox</zorder>
-         <zorder>groupBox</zorder>
         </widget>
        </item>
       </layout>
@@ -226,7 +250,7 @@
     <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
-    <bool>true</bool>
+    <bool>false</bool>
    </attribute>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
