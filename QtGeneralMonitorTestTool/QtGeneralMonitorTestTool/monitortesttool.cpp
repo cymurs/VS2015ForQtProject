@@ -25,7 +25,10 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
 	, dataFile("")
-	, dataTable(generateRandomData())
+	, maxSize(50)
+	, maxX(50)
+	, maxY(100)
+	, dataTable(generateRandomData(1, maxY, maxSize))
 {
 //	ui.setupUi(this);
 
@@ -154,7 +157,7 @@ void MonitorTestTool::runImport()
 		line.append('\n');
 		showData(line);
 	}
-
+	
 	in.flush();
 	file.close();
 
@@ -201,10 +204,10 @@ void MonitorTestTool::recordData()
 			}
 			
 			
-			if (rfile.isOpen()) {
-				QTextStream out(&rfile);
-				out << strWriting;
-			}
+			QMutexLocker locker(&writeMutex);
+			QTextStream out(&rfile);
+			out << strWriting;
+			
 		}
 		catch (...) {
 			emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData error"));
@@ -227,7 +230,46 @@ void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 void MonitorTestTool::showData(const QString &data)
 {
 	receiveTextEdit->moveCursor(QTextCursor::Start);
-	receiveTextEdit->insertPlainText(data);
+	receiveTextEdit->insertPlainText(data);	
+}
+
+void MonitorTestTool::changeSeries(const QString &)
+{
+	static qint32 id = maxSize;
+	
+	qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+	for(DataList &dataList : dataTable) {		
+		//qint32 id = dataList.back().second.trimmed().section(':', 1, 1).toInt();
+		//qreal yValue = (qreal)(qrand() % maxY) / (qreal)maxSize;
+		//QPointF value((id + (qreal)rand() / (qreal)RAND_MAX) * ((qreal)20 / (qreal)maxSize),
+		//	yValue);
+		qreal yValue = 25 + (qreal)(qrand() % (maxY / 2));
+		QPointF value(id, yValue);
+		QString label = "Slice 0:" + QString::number(id);
+		dataList << Data(value, label);	
+		if (dataList.size() > maxSize)
+			dataList.removeFirst();
+	}	
+
+	if (isVisible()) {
+		splineSeries->clear();
+		scatterSeries->clear();
+
+		QString name("Series ");
+		//int nameIndex = 0;
+		foreach(DataList list, dataTable) {
+			foreach(Data data, list) {
+				splineSeries->append(data.first);
+				scatterSeries->append(data.first);
+			}
+			//splineSeries->setName(name + QString::number(nameIndex));
+			//nameIndex++;
+		}
+		splineChart->axisX()->setRange(id - maxSize + 1, id);
+	}
+	
+	// 下一次值的编号
+	++id;
 }
 
 void MonitorTestTool::showMessage(const QString &s)
@@ -251,6 +293,11 @@ void MonitorTestTool::handleData()
 	QString data;
 	do 
 	{
+		// 测试代码
+		data = std::move(QTime::currentTime().toString(tr("hh:mm:ss\n")));
+		emit sendData(data);
+		QThread::msleep(1000);
+
 		while (queue.Pop(data, false)) {
 			emit sendData(data);
 
@@ -285,8 +332,9 @@ DataTable MonitorTestTool::generateRandomData(int listCount, int valueMax, int v
 		qreal yValue(0);
 		for (int j(0); j < valueCount; j++) {
 			yValue = yValue + (qreal)(qrand() % valueMax) / (qreal)valueCount;
-			QPointF value((j + (qreal)rand() / (qreal)RAND_MAX) * ((qreal)20 / (qreal)valueCount),
-				yValue);
+			//QPointF value((j + (qreal)rand() / (qreal)RAND_MAX) * ((qreal)20 / (qreal)valueCount),
+			//	yValue);
+			QPointF value(j, yValue);
 			QString label = "Slice " + QString::number(i) + ":" + QString::number(j);
 			dataList << Data(value, label);
 		}
@@ -377,24 +425,45 @@ QGroupBox *MonitorTestTool::createChartGroup()
 {
 	// spine chart
 	splineChart = new QChart();
-	splineChart->setTitle("serial port spline chart");
+	splineChart->setTitle("serial port realtime chart");
 	QString name("Series ");
 	int nameIndex = 0;
 	foreach(DataList list, dataTable) {
-		QSplineSeries *series = new QSplineSeries(splineChart);
-		foreach(Data data, list)
-			series->append(data.first);
-		series->setName(name + QString::number(nameIndex));
+		//QSplineSeries *series = new QSplineSeries(splineChart);
+		splineSeries = new QSplineSeries(splineChart);
+		scatterSeries = new QScatterSeries(splineChart);
+		scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+		scatterSeries->setMarkerSize(8);
+		foreach(Data data, list) {
+			splineSeries->append(data.first);
+			scatterSeries->append(data.first);
+		}
+		splineSeries->setName(name + QString::number(nameIndex));
+		scatterSeries->setName(name + QString::number(nameIndex));
 		nameIndex++;
-		splineChart->addSeries(series);
+		splineChart->addSeries(splineSeries);
+		splineChart->addSeries(scatterSeries);
 	}
+	splineChart->setAnimationOptions(QChart::SeriesAnimations);
 	splineChart->createDefaultAxes();
+	splineChart->axisY()->setRange(0, maxY);
+	//splineChart->axisX()->setRange(0, maxSize);
+	QValueAxis *axisX = new QValueAxis();
+	axisX->setRange(0, maxSize - 1);
+	axisX->setLabelFormat("%u"); //设置刻度的格式
+	axisX->setGridLineVisible(true);
+	axisX->setTickCount(maxSize);     //设置多少格
+	//axisX->setMinorTickCount(3); //设置每格小刻度线的数目	
+	// 需要将x轴与series绑定
+	splineChart->setAxisX(axisX, splineSeries);
+	splineChart->setAxisX(axisX, scatterSeries);
 
 	auto splineView = new QChartView(splineChart);
 	splineView->setRenderHint(QPainter::Antialiasing); // 图像抗锯齿
 	splineView->setSceneRect(0, 0, 630, 280);	 // 设置初始图表大小
 
 	auto chartLayout = new QVBoxLayout;
+	chartLayout->setContentsMargins(0, 0, 0, 0);
 	chartLayout->addWidget(splineView);
 
 	auto chartGroupBox = new QGroupBox(tr("实时数据曲线图"));
@@ -412,8 +481,11 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(selectButton, &QPushButton::clicked, this, &MonitorTestTool::selectFile);
 	connect(confirmButton, &QPushButton::clicked, this, &MonitorTestTool::runImport);
 	connect(cancelButton, &QPushButton::clicked, this, &MonitorTestTool::cancelImport);
+
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));	
+
 	connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
+	connect(this, SIGNAL(sendData(QString)), this, SLOT(changeSeries(QString)));
 }
 
 void MonitorTestTool::initWidgetsStyle()
@@ -448,6 +520,10 @@ void MonitorTestTool::deleteWidgets()
 
 	delete receiveTextEdit;
 	delete statusBar;
+	delete splineChart;
+	delete splineSeries;
+	delete scatterSeries;
+
 
 	serialPortLabel = Q_NULLPTR;
 	baudRateLabel = Q_NULLPTR;
@@ -470,6 +546,9 @@ void MonitorTestTool::deleteWidgets()
 
 	receiveTextEdit = Q_NULLPTR;
 	statusBar = Q_NULLPTR;
+	splineChart = Q_NULLPTR;
+	splineSeries = Q_NULLPTR;
+	scatterSeries = Q_NULLPTR;
 }
 
 void MonitorTestTool::runThread()

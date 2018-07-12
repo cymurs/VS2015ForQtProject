@@ -31,6 +31,7 @@ private Q_SLOTS:
 	void cancelImport();
 	void debugTips(qint64, const QString &);
 	void showData(const QString &);
+	void changeSeries(const QString &);
 	
 
 protected:
@@ -74,17 +75,23 @@ private:
 	QTextEdit *receiveTextEdit;
 	QStatusBar *statusBar;
 	QChart *splineChart;
+	QSplineSeries *splineSeries;
+	QScatterSeries *scatterSeries;
 
 	QSerialPort *serial;
 	ConcurrentQueue<QString> queue;
 
 	QString record;
 	QMutex recordMutex;
+	QMutex writeMutex;
 	QWaitCondition recordCondition;
 
 	QString dataFile;
 
-	DataTable dataTable;
+	quint32 maxSize;
+	quint32 maxX;
+	quint32 maxY;
+	DataTable dataTable;	
 	//QFuture<void> retRead;
 	//QFuture<void> retRecord;
 	//QFuture<void> retHandle;
