@@ -43,6 +43,7 @@ private:
 	QGroupBox *createReceiveGroup();
 	QGroupBox *createImportGroup();
 	QGroupBox *createChartGroup();
+	QProgressDialog *createProgressDialog(qint32 min, qint32 max, const QString &text, const QString &title = tr(""));
 	void initWidgetsConnections();
 	void initWidgetsStyle();
 	void deleteWidgets();
@@ -91,6 +92,7 @@ private:
 	quint32 maxSize;
 	quint32 maxX;
 	quint32 maxY;
+	quint32 randCount;
 	DataTable dataTable;	
 	//QFuture<void> retRead;
 	//QFuture<void> retRecord;
