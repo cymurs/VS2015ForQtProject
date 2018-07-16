@@ -1,5 +1,7 @@
 #pragma once
-
+#include <QMutex>
+#include <QWaitCondition>
+#include <QQueue>
 
 template<class Type>
 class ConcurrentQueue

@@ -24,8 +24,12 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += main.cpp\
-        dialog.cpp
+        dialog.cpp \
+    concurrentqueue.cpp \
+    ctextedit.cpp
 
-HEADERS  += dialog.h
+HEADERS  += dialog.h \
+    concurrentqueue.h \
+    ctextedit.h
 
 FORMS    += dialog.ui
