@@ -40,7 +40,7 @@ void CTextEdit::run()
             insertPlainText(data);
             ++seq;
         }
-    } catch (RtlWerpReportException &e) {
+    } catch (std::exception &e) {
 
     }
 }
