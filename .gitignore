@@ -244,3 +244,4 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /QtGeneralMonitorTestTool/QtGeneralMonitorTestTool/record.csv
+/build-QtCreatorProject-unknown-Debug/
