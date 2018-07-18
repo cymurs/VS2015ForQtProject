@@ -39,15 +39,15 @@
     <ClCompile Include="monitortesttool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="concurrentqueue.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="concurrentqueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="qdoublebufferedqueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

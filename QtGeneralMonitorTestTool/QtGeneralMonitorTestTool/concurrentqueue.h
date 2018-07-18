@@ -20,14 +20,15 @@ public:
 	}
 
 	bool Pop(Type &record, bool isBlocked = true) {
+		QMutexLocker locker(&mMutex);
 		if (isBlocked) {
-			QMutexLocker locker(&mMutex);
+			//QMutexLocker locker(&mMutex);
 			while (mQueue.empty()) {
 				mCondition.wait(&mMutex);
 			}
 		}
 		else {
-			QMutexLocker locker(&mMutex);
+			//QMutexLocker locker(&mMutex);
 			if (mQueue.empty()) {
 				return false;
 			}

@@ -24,6 +24,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, receiveTextEdit(new QTextEdit(tr("准备中......")))
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
+	, windowTimer(new QTimer(this))
 	, dataFile("")
 	, maxSize(10)
 	, maxX(50)
@@ -42,12 +43,13 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	leftLayout->addWidget(createSettingsGroup());
 	leftLayout->addWidget(createImportGroup());
 	leftLayout->addWidget(createReceiveGroup());	
-	leftLayout->addWidget(statusBar);	
+	//leftLayout->addWidget(statusBar);	
 
 
 	auto baseLayout = new QGridLayout();
 	baseLayout->addLayout(leftLayout, 0, 0);
 	baseLayout->addWidget(createChartGroup(), 0, 1);
+	baseLayout->addWidget(statusBar, 1, 0, 1, 2);
 	// 设置拉升时固定比例
 	baseLayout->setColumnStretch(0, 1);
 	baseLayout->setColumnStretch(1, 4);
@@ -58,6 +60,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	initWidgetsStyle();
 	initWidgetsConnections();
 	
+	windowTimer->setInterval(interval);
 
 	//emit debugUpdate(quintptr(QThread::currentThreadId()), tr("MonitorTestTool"));
 	//QMessageBox::critical(this, tr("Critical Test"), tr("[%1]MonitorTestTool").arg(quintptr(QThread::currentThreadId())));
@@ -78,9 +81,8 @@ void MonitorTestTool::filterChanged(const QString &ret)
 		.arg(parityComboBox->currentData().toInt())
 		.arg(parityComboBox->currentText());
 
-	receiveTextEdit->moveCursor(QTextCursor::Start);
-	receiveTextEdit->insertPlainText(s);
-	statusBar->showMessage(s);
+	onShow(s);
+	showMessage(s);
 }
 
 void MonitorTestTool::openSerialPort()
@@ -103,6 +105,7 @@ void MonitorTestTool::openSerialPort()
 		confirmButton->setEnabled(false);
 		cancelButton->setEnabled(false);
 		stopButton->setEnabled(true);
+		windowTimer->start();
 
 		runThread();				
 	}
@@ -124,6 +127,8 @@ void MonitorTestTool::closeSerialPort()
 		cancelButton->setEnabled(true);
 		stopButton->setEnabled(false);
 	}
+	if (windowTimer->isActive())
+		windowTimer->stop();
 }
 
 void MonitorTestTool::selectFile()
@@ -151,37 +156,38 @@ void MonitorTestTool::runImport()
 
 	//receiveTextEdit->clear();
 	
-	if (file.size() > 1024 * 5) {
+	//if (file.size() > 1024 * 5) {
 		QTextStream in(&file);
 		QString lines = in.readAll();
-		qint32 max = lines.count('\n');		
-		QScopedPointer<QProgressDialog> pd( createProgressDialog(0, max, tr("正在导入..."), tr("导入数据")) );		
-		qint32 idx = 1;
-		QStringList list = lines.split('\n');
-		for (QString line : list)
-		{
-			//if (line.isEmpty()) continue;
-			line.append('\n');
-			showData(line);
-			pd->setValue(idx);
-			++idx;
+		onShow(lines, true);
+		//qint32 max = lines.count('\n');		
+		//QScopedPointer<QProgressDialog> pd(createProgressDialog(0, max, tr("正在导入..."), tr("导入数据"))); 		
+		//qint32 idx = 1;
+		//QStringList list = lines.split('\n');
+		//for (QString line : list)
+		//{
+		//	//if (line.isEmpty()) continue;
+		//	line.append('\n');
+		//	onShow(line);
+		//	pd->setValue(idx);
+		//	++idx;
 
-			if (pd->wasCanceled()) {
-				receiveTextEdit->clear();
-				break;
-			}
-		}
-		pd->close();
-	} else {
-		QTextStream in(&file);
-		QString line;
-		while (in.readLineInto(&line)) {
-			//if (line.isEmpty()) continue;
-			line.append('\n');
-			showData(line);
-		}	
-		in.flush();
-	}
+		//	if (pd->wasCanceled()) {
+		//		receiveTextEdit->clear();
+		//		break;
+		//	}
+		//}
+		//pd->close();
+	//} else {
+	//	QTextStream in(&file);
+	//	QString line;
+	//	while (in.readLineInto(&line)) {
+	//		//if (line.isEmpty()) continue;
+	//		line.append('\n');
+	//		onShow(line);
+	//	}	
+	//	in.flush();
+	//}
 	file.close();
 
 	showMessage(tr("导入完成!"));
@@ -249,32 +255,50 @@ void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 	}
 }
 
-void MonitorTestTool::showData(const QString &data)
+void MonitorTestTool::onShow(const QString &data, bool overwrite)
 {
-	static qint32 circle(0);
+	if (overwrite) {
+		receiveTextEdit->setText(data);
+		return;
+	}
 
-	if (circle > maxSize - 2) {  // 因为有一行提示，所以插入maxSize - 1之后就要开始删除，保证总数为maxSize
+	qint32 cnt = receiveTextEdit->document()->lineCount();
+	qint32 diff = cnt - maxSize + 1;
+
+	if (diff > 0) {
 		receiveTextEdit->moveCursor(QTextCursor::End, QTextCursor::MoveAnchor);  // 位置在最后一行之后
 		receiveTextEdit->moveCursor(QTextCursor::Up, QTextCursor::KeepAnchor);  // 所以向上才能选中最后一行
+		--diff;
+		while (diff > 0) {
+			receiveTextEdit->moveCursor(QTextCursor::Up, QTextCursor::KeepAnchor);  // 所以向上才能选中最后一行
+			
+			--diff;
+		}	
 		receiveTextEdit->textCursor().removeSelectedText();
 	}
 	receiveTextEdit->moveCursor(QTextCursor::Start);
 	receiveTextEdit->insertPlainText(data);
-	++circle;	
+	//receiveTextEdit->insertHtml(data);
 }
 
-void MonitorTestTool::changeSeries(const QString &)
+void MonitorTestTool::onShow(const QStringList &dataList)
+{
+	QString data = dataList.join('\n');
+	onShow(data);
+}
+
+void MonitorTestTool::onSeriesChanged(const QString &)
 {
 	//QThread::msleep(500);
-	
+	qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
 	static qint32 id = randCount;
+		
 	int diff = scatterSeries->count() - maxSize;
 	if (diff > 0) {
 		scatterSeries->removePoints(0, diff);
 		splineSeries->removePoints(0, diff);
 	}
-
-	qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+	
 	for(DataList &dataList : dataTable) {		
 		//qint32 id = dataList.back().second.trimmed().section(':', 1, 1).toInt();
 		//qreal yValue = (qreal)(qrand() % maxY) / (qreal)maxSize;
@@ -314,8 +338,34 @@ void MonitorTestTool::changeSeries(const QString &)
 	
 	// 下一次值的编号
 	++id;
-	if (0 == id % 3)
+	// 保证对界面其他操作的响应
+	if (0 == id % 2)
 		QCoreApplication::processEvents();
+}
+
+void MonitorTestTool::onSeriesChanged(const QStringList &dataList)
+{
+	QString data = dataList.join('\n');
+	onSeriesChanged(data);
+}
+
+void MonitorTestTool::onDataUpdateTimer()
+{
+	QString *packet;
+	QString data("");
+	qint32 count = windowQueue.get(&packet);	
+	
+	if (count > 0) {
+		if (count > 1) {
+			for (qint32 i=0; i<count; ++i)
+				data.sprintf("%s%s", qPrintable(data), qPrintable(packet[i]));
+		}
+		else
+			data = packet[0];
+		showMessage(data);
+		onSeriesChanged(data);
+		onShow(data);
+	}	
 }
 
 void MonitorTestTool::showMessage(const QString &s)
@@ -341,8 +391,10 @@ void MonitorTestTool::handleData()
 	{
 		// 测试代码
 		data = std::move(QTime::currentTime().toString(tr("hh:mm:ss\n")));
-		emit sendData(data);
-		QThread::msleep(500);
+		//data = std::move(tr("<table border=\"1\"><tr><td>%1</td><td>num</td></tr></table>\n").arg(QTime::currentTime().toString("hh:mm:ss")) );		
+		//emit sendData(data);
+		windowQueue.put(data);
+		QThread::msleep(10 * interval);
 		
 		while (queue.Pop(data, false)) {
 			emit sendData(data);
@@ -471,7 +523,10 @@ QGroupBox *MonitorTestTool::createChartGroup()
 {
 	// spine chart
 	splineChart = new QChart();
-	splineChart->setTitle("serial port realtime chart");
+	splineChart->setTitle("Realtime Serial Data Chart");
+	splineChart->setTheme(QChart::ChartThemeBlueNcs);
+	//splineChart->setAnimationOptions(QChart::SeriesAnimations);
+	splineChart->legend()->hide();
 	QString name("Series ");
 	int nameIndex = 0;
 	foreach(DataList list, dataTable) {
@@ -487,27 +542,33 @@ QGroupBox *MonitorTestTool::createChartGroup()
 		splineSeries->setName(name + QString::number(nameIndex));
 		scatterSeries->setName(name + QString::number(nameIndex));
 		nameIndex++;
+		splineSeries->setUseOpenGL(true);
+		scatterSeries->setUseOpenGL(true);
 		splineChart->addSeries(splineSeries);
 		splineChart->addSeries(scatterSeries);
-	}
-	splineChart->setAnimationOptions(QChart::SeriesAnimations);
-	splineChart->createDefaultAxes();
-	splineChart->axisY()->setRange(0, maxY);
-	//splineChart->axisX()->setRange(0, maxSize);
-	QValueAxis *axisX = new QValueAxis();
+	}	
+	splineChart->createDefaultAxes();		
+	axisX = new QValueAxis();
 	axisX->setRange(0, maxSize - 1);
 	axisX->setLabelFormat("%u"); //设置刻度的格式
 	axisX->setGridLineVisible(true);
 	axisX->setTickCount(maxSize);     //设置多少格
+	axisX->setTitleText(tr("Data point"));
 	//axisX->setMinorTickCount(3); //设置每格小刻度线的数目	
-	// 需要将x轴与series绑定
+	axisY = new QValueAxis();
+	axisY->setRange(0, maxY);
+	axisY->setTitleText(tr("Values"));
+	// 需要将坐标轴与series绑定
 	splineChart->setAxisX(axisX, splineSeries);
 	splineChart->setAxisX(axisX, scatterSeries);
+	splineChart->setAxisY(axisY, splineSeries);
+	splineChart->setAxisY(axisY, scatterSeries);
 
 	auto splineView = new QChartView(splineChart);
 	splineView->setRenderHint(QPainter::Antialiasing); // 图像抗锯齿
 	splineView->setSceneRect(0, 0, 630, 280);	 // 设置初始图表大小
-
+	disconnect(splineSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
+	
 	auto chartLayout = new QVBoxLayout;
 	chartLayout->setContentsMargins(0, 0, 0, 0);
 	chartLayout->addWidget(splineView);
@@ -541,11 +602,12 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(selectButton, &QPushButton::clicked, this, &MonitorTestTool::selectFile);
 	connect(confirmButton, &QPushButton::clicked, this, &MonitorTestTool::runImport);
 	connect(cancelButton, &QPushButton::clicked, this, &MonitorTestTool::cancelImport);
+	connect(windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
 
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));	
 
 	connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
-	connect(this, SIGNAL(sendData(QString)), this, SLOT(changeSeries(QString)));
+	connect(this, SIGNAL(sendData(QString)), this, SLOT(onSeriesChanged(QString)));
 }
 
 void MonitorTestTool::initWidgetsStyle()

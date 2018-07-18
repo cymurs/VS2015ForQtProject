@@ -3,6 +3,7 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_monitortesttool.h"
 #include "concurrentqueue.h"
+#include "qdoublebufferedqueue.h"
 
 typedef QPair<QPointF, QString> Data;
 typedef QList<Data> DataList;
@@ -30,8 +31,11 @@ private Q_SLOTS:
 	void runImport();
 	void cancelImport();
 	void debugTips(qint64, const QString &);
-	void showData(const QString &);
-	void changeSeries(const QString &);
+	void onShow(const QString &, bool overwrite = false);
+	void onShow(const QStringList &);
+	void onSeriesChanged(const QString &);
+	void onSeriesChanged(const QStringList &);
+	void onDataUpdateTimer();
 	
 
 protected:
@@ -78,9 +82,13 @@ private:
 	QChart *splineChart;
 	QSplineSeries *splineSeries;
 	QScatterSeries *scatterSeries;
+	QValueAxis *axisX;
+	QValueAxis *axisY;
 
 	QSerialPort *serial;
+	QTimer *windowTimer;
 	ConcurrentQueue<QString> queue;
+	QDoubleBufferedQueue<QString> windowQueue;
 
 	QString record;
 	QMutex recordMutex;
