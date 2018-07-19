@@ -30,16 +30,15 @@ private Q_SLOTS:
 	void selectFile();
 	void runImport();
 	void cancelImport();
-	void debugTips(qint64, const QString &);
-	void onShow(const QString &, bool overwrite = false);
+	void onShow(const QString &, bool overwrite = false);	
 	void onShow(const QStringList &);
 	void onSeriesChanged(const QString &);
 	void onSeriesChanged(const QStringList &);
 	void onDataUpdateTimer();
-	
+	void debugTips(qint64, const QString &);
 
 protected:
-	void closeEvent(QCloseEvent *);
+	void closeEvent(QCloseEvent *);	
 	DataTable generateRandomData(int listCount = 3, int valueMax = 20, int valueCount = 10) const;
 
 private:
@@ -55,6 +54,7 @@ private:
 	void recordData();
 	void handleData();
 	void runThread();
+	bool parseData(const QString &data, QStringList &result);
 	void showMessage(const QString &);
 
 private:
@@ -86,9 +86,11 @@ private:
 	QValueAxis *axisY;
 
 	QSerialPort *serial;
-	QTimer *windowTimer;
+	QTimer windowTimer;
 	ConcurrentQueue<QString> queue;
 	QDoubleBufferedQueue<QString> windowQueue;
+	QString frameHead;
+	QString frameTail;
 
 	QString record;
 	QMutex recordMutex;

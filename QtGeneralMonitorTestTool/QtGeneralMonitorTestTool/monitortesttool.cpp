@@ -24,17 +24,19 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, receiveTextEdit(new QTextEdit(tr("准备中......")))
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
-	, windowTimer(new QTimer(this))
 	, dataFile("")
 	, maxSize(10)
 	, maxX(50)
 	, maxY(100)
 	, randCount(1)
 	, dataTable(generateRandomData(1, maxY, randCount))
+	, frameHead("A5")
+	, frameTail("AA")
 {
 //	ui.setupUi(this);
 
-	
+	// 增加最大最小化按钮
+	setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 	
 	
 	
@@ -60,7 +62,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	initWidgetsStyle();
 	initWidgetsConnections();
 	
-	windowTimer->setInterval(interval);
+	//windowTimer.setInterval(interval);
 
 	//emit debugUpdate(quintptr(QThread::currentThreadId()), tr("MonitorTestTool"));
 	//QMessageBox::critical(this, tr("Critical Test"), tr("[%1]MonitorTestTool").arg(quintptr(QThread::currentThreadId())));
@@ -104,14 +106,14 @@ void MonitorTestTool::openSerialPort()
 		runButton->setEnabled(false);		
 		confirmButton->setEnabled(false);
 		cancelButton->setEnabled(false);
-		stopButton->setEnabled(true);
-		windowTimer->start();
+		stopButton->setEnabled(true);		
+		windowTimer.start(interval);
 
 		runThread();				
 	}
 	else {
 		QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败!").arg(portName));
-		statusBar->showMessage(tr("open serial port failed!\n"));
+		showMessage(tr("open serial port failed!\n"));
 	}
 }
 
@@ -127,8 +129,8 @@ void MonitorTestTool::closeSerialPort()
 		cancelButton->setEnabled(true);
 		stopButton->setEnabled(false);
 	}
-	if (windowTimer->isActive())
-		windowTimer->stop();
+	if (windowTimer.isActive())
+		windowTimer.stop();
 }
 
 void MonitorTestTool::selectFile()
@@ -195,8 +197,8 @@ void MonitorTestTool::runImport()
 
 void MonitorTestTool::cancelImport()
 {
-	if (dataFile.isEmpty())  return;
 	receiveTextEdit->clear();
+	if (dataFile.isEmpty())  return;	
 	dataFileLineEdit->clear();
 	dataFile.clear();
 	selectButton->setFocus();
@@ -212,22 +214,25 @@ void MonitorTestTool::recordData()
 			// 每隔 2s 写一次文件
 			QThread::sleep(2);
 			
-			//QString strWriting("");
-			//{
-			//	QMutexLocker locker(&recordMutex);
-			//	record.swap(strWriting);
-			//}
-			qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
-			QStringList list = { "one", "two", "three" };
-			qint32 cur = qrand() % 3;
-			QString strWriting = QTime::currentTime().toString(tr("hh:mm:ss "));
-			strWriting.push_back(list[cur]);
-			strWriting.push_back(tr("\n"));
+			QString strWriting("");
+			{
+				QMutexLocker locker(&recordMutex);
+				record.swap(strWriting);
+			}
+
+			// 测试
+			//qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+			//QStringList list = { "one", "two", "three" };
+			//qint32 cur = qrand() % 3;
+			//QString strWriting = QTime::currentTime().toString(tr("hh:mm:ss "));
+			//strWriting.push_back(list[cur]);
+			//strWriting.push_back(tr("\n"));
 
 			if (!rfile.isOpen()) {
 				if (!rfile.open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Append)) {
-					QMessageBox::critical(this, tr("critical error"), tr("Open %1 failed!").arg(RecordFile));
-					statusBar->showMessage(strWriting);
+					//QMessageBox::critical(this, tr("critical error"), tr("Open %1 failed!").arg(RecordFile));
+					//statusBar->showMessage(strWriting);
+					emit sendData(tr("Open %1 failed!").arg(RecordFile));
 				}
 			}
 			
@@ -238,7 +243,7 @@ void MonitorTestTool::recordData()
 			
 		}
 		catch (...) {
-			emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData error"));
+			emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData error."));
 		}
 
 	}
@@ -246,6 +251,7 @@ void MonitorTestTool::recordData()
 		rfile.close();
 }
 
+// 测试
 void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 {
 	//QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
@@ -258,7 +264,7 @@ void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 void MonitorTestTool::onShow(const QString &data, bool overwrite)
 {
 	if (overwrite) {
-		receiveTextEdit->setText(data);
+		receiveTextEdit->setPlainText(data);
 		return;
 	}
 
@@ -287,37 +293,37 @@ void MonitorTestTool::onShow(const QStringList &dataList)
 	onShow(data);
 }
 
-void MonitorTestTool::onSeriesChanged(const QString &)
-{
-	//QThread::msleep(500);
-	qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
-	static qint32 id = randCount;
-		
-	int diff = scatterSeries->count() - maxSize;
-	if (diff > 0) {
-		scatterSeries->removePoints(0, diff);
-		splineSeries->removePoints(0, diff);
-	}
-	
-	for(DataList &dataList : dataTable) {		
-		//qint32 id = dataList.back().second.trimmed().section(':', 1, 1).toInt();
-		//qreal yValue = (qreal)(qrand() % maxY) / (qreal)maxSize;
-		//QPointF value((id + (qreal)rand() / (qreal)RAND_MAX) * ((qreal)20 / (qreal)maxSize),
-		//	yValue);
-		qreal yValue = 25 + (qreal)(qrand() % (maxY / 2));
-		QPointF value(id, yValue);
-		QString label = "Slice 0:" + QString::number(id);
-		dataList << Data(value, label);
-		scatterSeries->append(value);
-		splineSeries->append(value);		
-		if (dataList.size() > maxSize) {
-			dataList.removeFirst();
-			//splineSeries->remove(0);
-			//scatterSeries->remove(0);
-			splineChart->axisX()->setRange(id - maxSize + 1, id);
-		}
-		
-	}	
+void MonitorTestTool::onSeriesChanged(const QString &data)
+{	
+	// 测试
+	//qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
+	//static qint32 id = randCount;
+	//	
+	//int diff = scatterSeries->count() - maxSize;
+	//if (diff > 0) {
+	//	scatterSeries->removePoints(0, diff);
+	//	splineSeries->removePoints(0, diff);
+	//}
+	//
+	//for(DataList &dataList : dataTable) {		
+	//	//qint32 id = dataList.back().second.trimmed().section(':', 1, 1).toInt();
+	//	//qreal yValue = (qreal)(qrand() % maxY) / (qreal)maxSize;
+	//	//QPointF value((id + (qreal)rand() / (qreal)RAND_MAX) * ((qreal)20 / (qreal)maxSize),
+	//	//	yValue);
+	//	qreal yValue = 25 + (qreal)(qrand() % (maxY / 2));
+	//	QPointF value(id, yValue);
+	//	QString label = "Slice 0:" + QString::number(id);
+	//	dataList << Data(value, label);
+	//	scatterSeries->append(value);
+	//	splineSeries->append(value);		
+	//	if (dataList.size() > maxSize) {
+	//		dataList.removeFirst();
+	//		//splineSeries->remove(0);
+	//		//scatterSeries->remove(0);
+	//		splineChart->axisX()->setRange(id - maxSize + 1, id);
+	//	}
+	//	
+	//}	
 
 	//if (isVisible()) {
 	//	splineSeries->clear();
@@ -336,11 +342,48 @@ void MonitorTestTool::onSeriesChanged(const QString &)
 	//	splineChart->axisX()->setRange(id - maxSize + 1, id);
 	//}
 	
+	static qint32 id(0);
+
+	int diff = scatterSeries->count() - maxSize;
+	if (diff > 0) {
+		scatterSeries->removePoints(0, diff);
+		splineSeries->removePoints(0, diff);
+	}
+
+	double y;
+	if (1 == data.count('\n')) {
+		y = data.toDouble();
+		if (y > maxY) {
+			showMessage(tr("Axis Y(=%1) bigger than maxY(=%2)! ").arg(y).arg(maxY));
+			return;
+		}
+		QPointF value(id, y);
+		scatterSeries->append(value);
+		splineSeries->append(value);
+		++id;
+	} else {
+		QVector<QStringRef> vecData = data.splitRef('\n', QString::SkipEmptyParts);
+		for(const QStringRef &d : vecData) {
+			y = d.toDouble();
+			if (y > maxY) {
+				showMessage(tr("Axis Y(=%1) bigger than maxY(=%2)! ").arg(y).arg(maxY));
+				continue;
+			}
+			QPointF value(id, y);
+			scatterSeries->append(value);
+			splineSeries->append(value);
+			++id;
+		}
+	}
+	if (id > maxSize) {
+		splineChart->axisX()->setRange(id - maxSize, id);
+	}
+	
 	// 下一次值的编号
-	++id;
+	//++id;
 	// 保证对界面其他操作的响应
-	if (0 == id % 2)
-		QCoreApplication::processEvents();
+	//if (0 == id % 2)
+	//	QCoreApplication::processEvents();
 }
 
 void MonitorTestTool::onSeriesChanged(const QStringList &dataList)
@@ -354,18 +397,23 @@ void MonitorTestTool::onDataUpdateTimer()
 	QString *packet;
 	QString data("");
 	qint32 count = windowQueue.get(&packet);	
+	QElapsedTimer timer;
+	timer.start();
 	
 	if (count > 0) {
+		data = packet[0];
 		if (count > 1) {
-			for (qint32 i=0; i<count; ++i)
-				data.sprintf("%s%s", qPrintable(data), qPrintable(packet[i]));
+			for (qint32 i=1; i<count; ++i)
+				data.sprintf("%s\n%s", qPrintable(data), qPrintable(packet[i]));
 		}
-		else
-			data = packet[0];
+		data.append("\n");
 		showMessage(data);
 		onSeriesChanged(data);
 		onShow(data);
-	}	
+	}
+
+	if (timer.elapsed() > 100)
+		QCoreApplication::processEvents();
 }
 
 void MonitorTestTool::showMessage(const QString &s)
@@ -376,9 +424,22 @@ void MonitorTestTool::showMessage(const QString &s)
 void MonitorTestTool::readData()
 {
 	while (isOpened) {
-		QByteArray data = serial->readAll();
-		if (serial->bytesAvailable() > 0)
-			queue.Push(data);
+		QByteArray data;
+		while (serial->waitForReadyRead()) {
+			QStringList list;
+			data = std::move(serial->readAll());
+			parseData(data, list);
+			for (const QString d : list)
+				queue.Push(d);
+		}
+		QString err;
+		if (serial->error() == QSerialPort::ReadError) {
+			err = QObject::tr("An I/O error occurred while reading the data from port %1, error: %2").arg(serial->portName()).arg(serial->errorString());			
+		} else if (serial->error() == QSerialPort::TimeoutError && data.isEmpty()) {
+			err = QObject::tr("No data was currently available for reading from port %1").arg(serial->portName());
+		}
+		if (!err.isEmpty())
+			emit sendData(err);
 	}
 }
 
@@ -390,17 +451,16 @@ void MonitorTestTool::handleData()
 	do 
 	{
 		// 测试代码
-		data = std::move(QTime::currentTime().toString(tr("hh:mm:ss\n")));
-		//data = std::move(tr("<table border=\"1\"><tr><td>%1</td><td>num</td></tr></table>\n").arg(QTime::currentTime().toString("hh:mm:ss")) );		
-		//emit sendData(data);
-		windowQueue.put(data);
-		QThread::msleep(10 * interval);
+		//data = std::move(QTime::currentTime().toString(tr("hh:mm:ss\n")));
+		////data = std::move(tr("<table border=\"1\"><tr><td>%1</td><td>num</td></tr></table>\n").arg(QTime::currentTime().toString("hh:mm:ss")) );				
+		//windowQueue.put(data);
+		//QThread::msleep(100 * interval);
 		
-		while (queue.Pop(data, false)) {
-			emit sendData(data);
-
+		while (queue.Pop(data)) {			
+			windowQueue.put(data);
 			{
 				QMutexLocker locker(&recordMutex);
+				data.append("\n");
 				record.append(data);
 			}
 
@@ -417,6 +477,7 @@ void MonitorTestTool::closeEvent(QCloseEvent *e)
 	deleteWidgets();
 }
 
+// 测试
 DataTable MonitorTestTool::generateRandomData(int listCount, int valueMax, int valueCount) const
 {
 	DataTable dataTable;
@@ -456,33 +517,38 @@ QGroupBox * MonitorTestTool::createSettingsGroup()
 	baudRateComboBox->addItem(tr("38400"), QVariant::fromValue(QSerialPort::Baud38400));
 	baudRateComboBox->addItem(tr("57600"), QVariant::fromValue(QSerialPort::Baud57600));
 	baudRateComboBox->addItem(tr("115200"), QVariant::fromValue(QSerialPort::Baud115200));
+	baudRateComboBox->setCurrentText(tr("115200"));
 
 	dataBitsComboBox->addItem(tr("5"));
 	dataBitsComboBox->addItem(tr("6"));
 	dataBitsComboBox->addItem(tr("7"));
 	dataBitsComboBox->addItem(tr("8"));
+	dataBitsComboBox->setCurrentText(tr("8"));
 
 	stopBitsComboBox->addItem(tr("1"));
 	stopBitsComboBox->addItem(tr("2"));
 	stopBitsComboBox->addItem(tr("3"));
+	stopBitsComboBox->setCurrentText(tr("1"));
 
 	parityComboBox->addItem(tr("奇"), QVariant::fromValue(QSerialPort::OddParity));
 	parityComboBox->addItem(tr("偶"), QVariant::fromValue(QSerialPort::EvenParity));
 	parityComboBox->addItem(tr("无"), QVariant::fromValue(QSerialPort::NoParity));
+	parityComboBox->setCurrentText(tr("无"));
 
 	auto settingsLayout = new QGridLayout();
 	settingsLayout->addWidget(serialPortLabel, 0, 0);
-	settingsLayout->addWidget(serialPortComboBox, 0, 1);
-	settingsLayout->addWidget(baudRateLabel, 0, 2);
-	settingsLayout->addWidget(baudRateComboBox, 0, 3);
+	settingsLayout->addWidget(serialPortComboBox, 0, 1);	
+	settingsLayout->addWidget(baudRateLabel, 0, 3);
+	settingsLayout->addWidget(baudRateComboBox, 0, 4);
 	settingsLayout->addWidget(dataBitsLabel, 1, 0);
 	settingsLayout->addWidget(dataBitsComboBox, 1, 1);
-	settingsLayout->addWidget(stopBitsLabel, 1, 2);
-	settingsLayout->addWidget(stopBitsComboBox, 1, 3);
+	settingsLayout->addWidget(stopBitsLabel, 1, 3);
+	settingsLayout->addWidget(stopBitsComboBox, 1, 4);
 	settingsLayout->addWidget(parityLabel, 2, 0);
 	settingsLayout->addWidget(parityComboBox, 2, 1);
-	settingsLayout->addWidget(runButton, 2, 2);
-	settingsLayout->addWidget(stopButton, 2, 3);	
+	settingsLayout->addWidget(runButton, 2, 3);
+	settingsLayout->addWidget(stopButton, 2, 4);
+	settingsLayout->setColumnMinimumWidth(2, 60);	
 
 	auto settingsGroupBox = new QGroupBox(tr("设置串口"));
 	settingsGroupBox->setLayout(settingsLayout);
@@ -494,8 +560,9 @@ QGroupBox * MonitorTestTool::createSettingsGroup()
 
 QGroupBox * MonitorTestTool::createReceiveGroup()
 {	
-	auto receiveLayout = new QVBoxLayout();
-	receiveLayout->addWidget(receiveTextEdit);
+	auto receiveLayout = new QGridLayout();
+	receiveLayout->addWidget(receiveTextEdit, 0, 0, 1, 5);
+	receiveLayout->addWidget(cancelButton, 1, 4);
 
 	auto receiveGropBox = new QGroupBox(tr("接收数据"));
 	receiveGropBox->setLayout(receiveLayout);
@@ -510,8 +577,8 @@ QGroupBox * MonitorTestTool::createImportGroup()
 	importLayout->addWidget(dataFileLabel, 0, 0);
 	importLayout->addWidget(dataFileLineEdit, 1, 0, 1, 3);
 	importLayout->addWidget(selectButton, 1, 3);
-	importLayout->addWidget(confirmButton, 2, 2);
-	importLayout->addWidget(cancelButton, 2, 3);
+	importLayout->addWidget(confirmButton, 1, 4);
+	//importLayout->addWidget(cancelButton, 2, 3);
 	
 	auto openingGroupBox = new QGroupBox(tr("导入数据"));
 	openingGroupBox->setLayout(importLayout);
@@ -602,12 +669,13 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(selectButton, &QPushButton::clicked, this, &MonitorTestTool::selectFile);
 	connect(confirmButton, &QPushButton::clicked, this, &MonitorTestTool::runImport);
 	connect(cancelButton, &QPushButton::clicked, this, &MonitorTestTool::cancelImport);
-	connect(windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
+	connect(&windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
 
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));	
+	connect(this, SIGNAL(sendData(QString)), this, SLOT(showMessage(QString)));
 
-	connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
-	connect(this, SIGNAL(sendData(QString)), this, SLOT(onSeriesChanged(QString)));
+	//connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
+	//connect(this, SIGNAL(sendData(QString)), this, SLOT(onSeriesChanged(QString)));
 }
 
 void MonitorTestTool::initWidgetsStyle()
@@ -678,5 +746,19 @@ void MonitorTestTool::runThread()
 	QtConcurrent::run(this, &MonitorTestTool::readData);
 	QtConcurrent::run(this, &MonitorTestTool::recordData);
 	QtConcurrent::run(this, &MonitorTestTool::handleData);
+}
+
+bool MonitorTestTool::parseData(const QString &data, QStringList &result)
+{
+	if (!data.startsWith(frameHead)) return false;
+
+	QStringList subs = data.split(frameHead, QString::SkipEmptyParts);
+	for (const QString &sub : subs) {
+		int value;		
+		sscanf(sub.toStdString().c_str(), "%dAA", &value);
+		result.append(QString::number(value));
+	}
+
+	return true;
 }
 
