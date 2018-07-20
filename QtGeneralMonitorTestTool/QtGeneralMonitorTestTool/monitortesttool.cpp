@@ -71,9 +71,12 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 MonitorTestTool::~MonitorTestTool()
 {
 	closeSerialPort();
+	QMutexLocker locker(&serialMutex);
+	if (serial && serial->isOpen())
+		serial->close();
 	delete serial;
 	serial = Q_NULLPTR;
-	deleteWidgets();
+	//deleteWidgets();
 }
 
 void MonitorTestTool::filterChanged(const QString &ret)
@@ -101,7 +104,13 @@ void MonitorTestTool::openSerialPort()
 	serial->setParity(QSerialPort::Parity(parity));
 	serial->setStopBits(QSerialPort::StopBits(stopBits));
 	serial->setFlowControl(QSerialPort::NoFlowControl);
-	if (serial->open(QIODevice::ReadWrite)) {
+	if (!serial->isOpen()) {
+		if (!serial->open(QIODevice::ReadWrite)) {
+			QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败: %2").arg(portName).arg(serial->errorString()));
+			showMessage(tr("open serial port failed!\n"));
+		}
+	}
+	if (serial->isOpen()) {
 		isOpened = true;
 		runButton->setEnabled(false);		
 		confirmButton->setEnabled(false);
@@ -111,18 +120,17 @@ void MonitorTestTool::openSerialPort()
 
 		runThread();				
 	}
-	else {
-		QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败!").arg(portName));
-		showMessage(tr("open serial port failed!\n"));
-	}
 }
 
 void MonitorTestTool::closeSerialPort()
 {
-	if (serial && serial->isOpen()) {
-		isOpened = false;
-		serial->close();		
-	}		
+	isOpened = false;
+	if (serialMutex.tryLock(100)) {
+		if (serial && serial->isOpen()) {
+			serial->close();
+		}
+		serialMutex.unlock();
+	}
 	if (runButton) {
 		runButton->setEnabled(true);		
 		confirmButton->setEnabled(true);
@@ -130,7 +138,7 @@ void MonitorTestTool::closeSerialPort()
 		stopButton->setEnabled(false);
 	}
 	if (windowTimer.isActive())
-		windowTimer.stop();
+		windowTimer.stop();	
 }
 
 void MonitorTestTool::selectFile()
@@ -431,7 +439,8 @@ void MonitorTestTool::readData()
 
 	while (isOpened) {
 		QByteArray data;
-		while (serial->waitForReadyRead(3000)) {
+		QMutexLocker locker(&serialMutex);
+		if (serial->waitForReadyRead(500)) {
 			QStringList list;
 			data = std::move(serial->readAll());
 			parseData(data, list);
@@ -481,9 +490,13 @@ void MonitorTestTool::handleData()
 void MonitorTestTool::closeEvent(QCloseEvent *e)
 {
 	closeSerialPort();
+	// 等待读串口线程退出
+	QMutexLocker locker(&serialMutex);
+	if (serial && serial->isOpen())
+		serial->close();
 	delete serial;
 	serial = Q_NULLPTR;
-	deleteWidgets();
+	//deleteWidgets();
 }
 
 // 测试
@@ -607,10 +620,10 @@ QGroupBox *MonitorTestTool::createChartGroup()
 	int nameIndex = 0;
 	foreach(DataList list, dataTable) {
 		//QSplineSeries *series = new QSplineSeries(splineChart);
-		splineSeries = new QSplineSeries(splineChart);
+		splineSeries = new QSplineSeries(splineChart);		
 		scatterSeries = new QScatterSeries(splineChart);
 		scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-		scatterSeries->setMarkerSize(5);
+		scatterSeries->setMarkerSize(3);
 		PointList points;
 		foreach(Data data, list) {
 			points.append(data.first);
@@ -632,7 +645,7 @@ QGroupBox *MonitorTestTool::createChartGroup()
 	axisX->setGridLineVisible(true);
 	axisX->setTickCount(maxSize);     //设置多少格
 	axisX->setTitleText(tr("Data point"));
-	//axisX->setMinorTickCount(3); //设置每格小刻度线的数目	
+	//axisX->setMinorTickCount(1); //设置每格小刻度线的数目	
 	axisY = new QValueAxis();
 	axisY->setRange(0, maxY);
 	axisY->setTitleText(tr("Values"));
@@ -682,7 +695,7 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(cancelButton, &QPushButton::clicked, this, &MonitorTestTool::cancelImport);
 	connect(&windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
 
-	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));	
+	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)), Qt::QueuedConnection);	
 	connect(this, SIGNAL(sendData(QString)), this, SLOT(showMessage(QString)));
 
 	//connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
@@ -755,8 +768,8 @@ void MonitorTestTool::deleteWidgets()
 void MonitorTestTool::runThread()
 {
 	QtConcurrent::run(this, &MonitorTestTool::readData);
-	QtConcurrent::run(this, &MonitorTestTool::recordData);
-	QtConcurrent::run(this, &MonitorTestTool::handleData);
+	//QtConcurrent::run(this, &MonitorTestTool::recordData);
+	//QtConcurrent::run(this, &MonitorTestTool::handleData);
 }
 
 bool MonitorTestTool::parseData(const QString &data, QStringList &result)

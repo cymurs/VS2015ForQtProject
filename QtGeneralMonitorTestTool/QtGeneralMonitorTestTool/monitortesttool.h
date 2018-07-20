@@ -87,6 +87,7 @@ private:
 	QValueAxis *axisY;
 
 	QSerialPort *serial;
+	QMutex serialMutex;
 	QTimer windowTimer;
 	ConcurrentQueue<QString> queue;
 	QDoubleBufferedQueue<QString> windowQueue;
