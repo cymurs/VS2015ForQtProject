@@ -8,6 +8,7 @@
 typedef QPair<QPointF, QString> Data;
 typedef QList<Data> DataList;
 typedef QList<DataList> DataTable;
+typedef QList<QPointF> PointList;
 
 QT_CHARTS_USE_NAMESPACE
 

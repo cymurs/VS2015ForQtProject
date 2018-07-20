@@ -206,9 +206,9 @@ void MonitorTestTool::cancelImport()
 
 void MonitorTestTool::recordData()
 {	
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData"));
-	QFile rfile(RecordFile);
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData restart"));
 
+	QFile rfile(RecordFile);
 	while (isOpened) { // while (isOpened || !record.isEmpty())
 		try {			
 			// 每隔 2s 写一次文件
@@ -249,6 +249,8 @@ void MonitorTestTool::recordData()
 	}
 	if (rfile.isOpen())
 		rfile.close();
+
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData quit"));
 }
 
 // 测试
@@ -256,8 +258,8 @@ void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 {
 	//QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
 	if (statusBar) {
-		statusBar->clearMessage();
-		statusBar->showMessage(tr("%1 thread is %2.").arg(where).arg(tid), 4000);
+		//statusBar->clearMessage();
+		statusBar->showMessage(tr("[%1]%2.").arg(tid).arg(where));
 	}
 }
 
@@ -362,6 +364,7 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 		splineSeries->append(value);
 		++id;
 	} else {
+		PointList points;
 		QVector<QStringRef> vecData = data.splitRef('\n', QString::SkipEmptyParts);
 		for(const QStringRef &d : vecData) {
 			y = d.toDouble();
@@ -370,10 +373,11 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 				continue;
 			}
 			QPointF value(id, y);
-			scatterSeries->append(value);
-			splineSeries->append(value);
+			points.append(value);
 			++id;
 		}
+		scatterSeries->append(points);
+		splineSeries->append(points);
 	}
 	if (id > maxSize) {
 		splineChart->axisX()->setRange(id - maxSize, id);
@@ -423,9 +427,11 @@ void MonitorTestTool::showMessage(const QString &s)
 
 void MonitorTestTool::readData()
 {
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData begin"));
+
 	while (isOpened) {
 		QByteArray data;
-		while (serial->waitForReadyRead()) {
+		while (serial->waitForReadyRead(3000)) {
 			QStringList list;
 			data = std::move(serial->readAll());
 			parseData(data, list);
@@ -441,11 +447,13 @@ void MonitorTestTool::readData()
 		if (!err.isEmpty())
 			emit sendData(err);
 	}
+
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData end"));
 }
 
 void MonitorTestTool::handleData()
 {	
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData"));
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData start"));
 
 	QString data;
 	do 
@@ -456,7 +464,7 @@ void MonitorTestTool::handleData()
 		//windowQueue.put(data);
 		//QThread::msleep(100 * interval);
 		
-		while (queue.Pop(data)) {			
+		while (queue.Pop(data, false)) {			
 			windowQueue.put(data);
 			{
 				QMutexLocker locker(&recordMutex);
@@ -467,6 +475,7 @@ void MonitorTestTool::handleData()
 		}
 	} while (isOpened || !queue.Empty());
 	
+	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData stop"));
 }
 
 void MonitorTestTool::closeEvent(QCloseEvent *e)
@@ -550,7 +559,7 @@ QGroupBox * MonitorTestTool::createSettingsGroup()
 	settingsLayout->addWidget(stopButton, 2, 4);
 	settingsLayout->setColumnMinimumWidth(2, 60);	
 
-	auto settingsGroupBox = new QGroupBox(tr("设置串口"));
+	auto settingsGroupBox = new QGroupBox(tr("串口设置"));
 	settingsGroupBox->setLayout(settingsLayout);
 
 	serialPortComboBox->setFocus();
@@ -602,17 +611,19 @@ QGroupBox *MonitorTestTool::createChartGroup()
 		scatterSeries = new QScatterSeries(splineChart);
 		scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
 		scatterSeries->setMarkerSize(5);
+		PointList points;
 		foreach(Data data, list) {
-			splineSeries->append(data.first);
-			scatterSeries->append(data.first);
+			points.append(data.first);
 		}
+		splineSeries->append(points);
+		scatterSeries->append(points);
 		splineSeries->setName(name + QString::number(nameIndex));
-		scatterSeries->setName(name + QString::number(nameIndex));
-		nameIndex++;
+		scatterSeries->setName(name + QString::number(nameIndex));		
 		splineSeries->setUseOpenGL(true);
 		scatterSeries->setUseOpenGL(true);
 		splineChart->addSeries(splineSeries);
 		splineChart->addSeries(scatterSeries);
+		nameIndex++;
 	}	
 	splineChart->createDefaultAxes();		
 	axisX = new QValueAxis();
