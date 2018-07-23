@@ -62,6 +62,7 @@ private:
 private:
 //	Ui::MonitorTestToolClass ui;
 	bool isOpened;
+	bool isQuit;
 	QLabel *serialPortLabel;
 	QComboBox *serialPortComboBox;
 	QLabel *baudRateLabel;
@@ -90,7 +91,7 @@ private:
 	QValueAxis *axisY;
 
 	QSerialPort *serial;
-	QMutex serialMutex;
+	mutable QMutex serialMutex;
 	QTimer windowTimer;
 	ConcurrentQueue<QString> queue;
 	QDoubleBufferedQueue<QString> windowQueue;
@@ -98,9 +99,9 @@ private:
 	QString frameTail;
 
 	QString record;
-	QMutex recordMutex;
-	QMutex writeMutex;
-	QWaitCondition recordCondition;
+	mutable QMutex recordMutex;
+	mutable QMutex writeMutex;
+	//QWaitCondition recordCondition;
 
 	QString dataFile;
 
@@ -109,9 +110,9 @@ private:
 	quint32 maxY;
 	quint32 randCount;
 	DataTable dataTable;	
-	//QFuture<void> retRead;
-	//QFuture<void> retRecord;
-	//QFuture<void> retHandle;
+	QFuture<void> retRead;
+	QFuture<void> retRecord;
+	QFuture<void> retHandle;
 	//QThread *timerThread;
 	//QTimer *recordTimer;
 };

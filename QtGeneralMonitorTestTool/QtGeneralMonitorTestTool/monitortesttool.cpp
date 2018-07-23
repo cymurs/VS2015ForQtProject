@@ -4,6 +4,7 @@
 MonitorTestTool::MonitorTestTool(QWidget *parent)
 	: QDialog(parent)//QMainWindow(parent)
 	, isOpened(true)
+	, isQuit(false)
 	, serialPortLabel(new QLabel(tr("端口号: ")))
 	, serialPortComboBox(new QComboBox())
 	, baudRateLabel(new QLabel(tr("波特率: ")))
@@ -72,11 +73,14 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 MonitorTestTool::~MonitorTestTool()
 {
 	closeSerialPort();
-	QMutexLocker locker(&serialMutex);
-	if (serial && serial->isOpen())
-		serial->close();
-	delete serial;
-	serial = Q_NULLPTR;
+	retRead.waitForFinished();
+	retRecord.waitForFinished();
+	retHandle.waitForFinished();
+	//QMutexLocker locker(&serialMutex);
+	//if (serial && serial->isOpen())
+	//	serial->close();
+	//delete serial;
+	//serial = Q_NULLPTR;
 	//deleteWidgets();
 }
 
@@ -124,16 +128,16 @@ void MonitorTestTool::openSerialPort()
 }
 
 void MonitorTestTool::closeSerialPort()
-{
-	
-	disconnect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));
-	isOpened = false;
-	if (serialMutex.tryLock(100)) {
-		if (serial && serial->isOpen()) {
-			serial->close();
-		}
-		serialMutex.unlock();
-	}
+{	
+	isOpened = false;	
+	//if (serialMutex.tryLock(100)) {
+	//	if (serial && serial->isOpen()) {			
+	//		serial->clear();
+	//		serial->clearError();
+	//		serial->close();
+	//	}
+	//	serialMutex.unlock();
+	//}
 	if (runButton) {
 		runButton->setEnabled(true);		
 		confirmButton->setEnabled(true);
@@ -217,7 +221,8 @@ void MonitorTestTool::cancelImport()
 
 void MonitorTestTool::recordData()
 {	
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData restart"));
+	if (!isQuit)
+		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData restart"));
 
 	QFile rfile(RecordFile);
 	while (isOpened) { // while (isOpened || !record.isEmpty())
@@ -261,7 +266,8 @@ void MonitorTestTool::recordData()
 	if (rfile.isOpen())
 		rfile.close();
 
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData quit"));
+	//if (!isQuit)
+	//	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData quit"));
 }
 
 // 测试
@@ -269,7 +275,7 @@ void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 {
 	//QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
 	if (statusBar) {		
-		statusBar->showMessage(tr("[%1]%2.").arg(tid).arg(where));
+		statusBar->showMessage(tr("[%1]%2.").arg(tid).arg(where), 4000);
 		//threadLabel->setText(tr("[%1]%2.").arg(tid).arg(where));
 	}
 }
@@ -371,8 +377,9 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 			return;
 		}
 		QPointF value(id, y);
-		scatterSeries->append(value);
+		
 		splineSeries->append(value);
+		scatterSeries->append(value);
 		++id;
 	} else {
 		PointList points;
@@ -387,12 +394,13 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 			points.append(value);
 			++id;
 		}
-		scatterSeries->append(points);
+		
 		splineSeries->append(points);
+		scatterSeries->append(points);
 	}
 	if (id > maxSize) {
-		//splineChart->axisX()->setRange(id - maxSize, id);
-		splineChart->scroll(splineChart->plotArea().width() / axisX->tickCount(), 0);
+		splineChart->axisX()->setRange(id - maxSize, id);
+		//splineChart->scroll(splineChart->plotArea().width() / axisX->tickCount(), 0);
 	}
 	
 	// 下一次值的编号
@@ -413,8 +421,8 @@ void MonitorTestTool::onDataUpdateTimer()
 	QString *packet;
 	QString data("");
 	qint32 count = windowQueue.get(&packet);	
-	QElapsedTimer timer;
-	timer.start();
+	//QElapsedTimer timer;
+	//timer.start();
 	
 	if (count > 0) {
 		data = packet[0];
@@ -439,17 +447,20 @@ void MonitorTestTool::showMessage(const QString &s)
 
 void MonitorTestTool::readData()
 {
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData begin"));
+	if (!isQuit)
+		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData begin"));
 
 	while (isOpened) {
 		QByteArray data;
 		QMutexLocker locker(&serialMutex);
-		if (serial->waitForReadyRead(500)) {
+		if (!serial->isOpen()) break;
+		if (serial->waitForReadyRead(100)) {
 			QStringList list;
 			data = std::move(serial->readAll());
 			parseData(data, list);
 			for (const QString d : list)
 				queue.Push(d);
+			//data.clear();
 		}
 		QString err;
 		if (serial->error() == QSerialPort::ReadError) {
@@ -461,12 +472,14 @@ void MonitorTestTool::readData()
 			emit sendData(err);
 	}
 
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData end"));
+	if (!isQuit)
+		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData end"));
 }
 
 void MonitorTestTool::handleData()
 {	
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData start"));
+	if (!isQuit)
+		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData start"));
 
 	QString data;
 	do 
@@ -486,20 +499,22 @@ void MonitorTestTool::handleData()
 			}
 
 		}
-	} while (isOpened || !queue.Empty());
+	} while (isOpened || (!isQuit && !queue.Empty()));
 	
-	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData stop"));
+	//if (!isQuit)
+	//	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData stop"));
 }
 
 void MonitorTestTool::closeEvent(QCloseEvent *e)
 {
+	isQuit = true;
 	closeSerialPort();
 	// 等待读串口线程退出
-	QMutexLocker locker(&serialMutex);
-	if (serial && serial->isOpen())
-		serial->close();
-	delete serial;
-	serial = Q_NULLPTR;
+	//QMutexLocker locker(&serialMutex);
+	//if (serial && serial->isOpen())
+	//	serial->close();  // 在serial析构时，已经执行
+	//delete serial;  // 因为构建了对象树，在父类析构时执行
+	//serial = Q_NULLPTR;
 	//deleteWidgets();
 }
 
@@ -783,9 +798,9 @@ void MonitorTestTool::deleteWidgets()
 
 void MonitorTestTool::runThread()
 {
-	QtConcurrent::run(this, &MonitorTestTool::readData);
-	QtConcurrent::run(this, &MonitorTestTool::recordData);
-	QtConcurrent::run(this, &MonitorTestTool::handleData);
+	retRead = QtConcurrent::run(this, &MonitorTestTool::readData);
+	retRecord = QtConcurrent::run(this, &MonitorTestTool::recordData);
+	retHandle = QtConcurrent::run(this, &MonitorTestTool::handleData);
 }
 
 bool MonitorTestTool::parseData(const QString &data, QStringList &result)
