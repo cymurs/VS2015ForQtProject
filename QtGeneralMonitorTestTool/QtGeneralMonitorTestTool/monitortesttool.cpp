@@ -24,6 +24,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, receiveTextEdit(new QTextEdit(tr("准备中......")))
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
+	, serialMutex(QMutex::Recursive)
 	, dataFile("")
 	, maxSize(10)
 	, maxX(50)
@@ -37,7 +38,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 
 	// 增加最大最小化按钮
 	setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
-	
+	//setupStatusBar();
 	
 	
 
@@ -124,6 +125,8 @@ void MonitorTestTool::openSerialPort()
 
 void MonitorTestTool::closeSerialPort()
 {
+	
+	disconnect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)));
 	isOpened = false;
 	if (serialMutex.tryLock(100)) {
 		if (serial && serial->isOpen()) {
@@ -265,9 +268,9 @@ void MonitorTestTool::recordData()
 void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 {
 	//QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
-	if (statusBar) {
-		//statusBar->clearMessage();
+	if (statusBar) {		
 		statusBar->showMessage(tr("[%1]%2.").arg(tid).arg(where));
+		//threadLabel->setText(tr("[%1]%2.").arg(tid).arg(where));
 	}
 }
 
@@ -388,7 +391,8 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 		splineSeries->append(points);
 	}
 	if (id > maxSize) {
-		splineChart->axisX()->setRange(id - maxSize, id);
+		//splineChart->axisX()->setRange(id - maxSize, id);
+		splineChart->scroll(splineChart->plotArea().width() / axisX->tickCount(), 0);
 	}
 	
 	// 下一次值的编号
@@ -424,8 +428,8 @@ void MonitorTestTool::onDataUpdateTimer()
 		onShow(data);
 	}
 
-	if (timer.elapsed() > 100)
-		QCoreApplication::processEvents();
+	//if (timer.elapsed() > 200)
+	//	QCoreApplication::processEvents();
 }
 
 void MonitorTestTool::showMessage(const QString &s)
@@ -684,6 +688,18 @@ QProgressDialog * MonitorTestTool::createProgressDialog(qint32 min, qint32 max, 
 	return progressDlg;
 }
 
+void MonitorTestTool::setupStatusBar()
+{
+	receiveLabel = new QLabel();
+	receiveLabel->setMinimumSize(receiveLabel->sizeHint());
+
+	threadLabel = new QLabel();
+	threadLabel->setMinimumSize(threadLabel->sizeHint());
+
+	statusBar->addWidget(receiveLabel);
+	statusBar->addWidget(threadLabel);
+}
+
 void MonitorTestTool::initWidgetsConnections()
 {
 	connect(parityComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
@@ -696,7 +712,7 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(&windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
 
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)), Qt::QueuedConnection);	
-	connect(this, SIGNAL(sendData(QString)), this, SLOT(showMessage(QString)));
+	connect(this, SIGNAL(sendData(QString)), statusBar, SLOT(showMessage(QString)));
 
 	//connect(this, SIGNAL(sendData(QString)), this, SLOT(showData(QString)));
 	//connect(this, SIGNAL(sendData(QString)), this, SLOT(onSeriesChanged(QString)));
@@ -768,8 +784,8 @@ void MonitorTestTool::deleteWidgets()
 void MonitorTestTool::runThread()
 {
 	QtConcurrent::run(this, &MonitorTestTool::readData);
-	//QtConcurrent::run(this, &MonitorTestTool::recordData);
-	//QtConcurrent::run(this, &MonitorTestTool::handleData);
+	QtConcurrent::run(this, &MonitorTestTool::recordData);
+	QtConcurrent::run(this, &MonitorTestTool::handleData);
 }
 
 bool MonitorTestTool::parseData(const QString &data, QStringList &result)

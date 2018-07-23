@@ -48,6 +48,7 @@ private:
 	QGroupBox *createImportGroup();
 	QGroupBox *createChartGroup();
 	QProgressDialog *createProgressDialog(qint32 min, qint32 max, const QString &text, const QString &title = tr(""));
+	void setupStatusBar();
 	void initWidgetsConnections();
 	void initWidgetsStyle();
 	void deleteWidgets();
@@ -79,6 +80,8 @@ private:
 	QPushButton *confirmButton;
 	QPushButton *cancelButton;
 	QTextEdit *receiveTextEdit;
+	QLabel *receiveLabel;
+	QLabel *threadLabel;
 	QStatusBar *statusBar;
 	QChart *splineChart;
 	QSplineSeries *splineSeries;
