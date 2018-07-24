@@ -198,7 +198,8 @@ void MonitorTestTool::runImport()
 		QStringList list = lines.split('\n');
 		for (QString line : list)
 		{
-			//if (line.isEmpty()) continue;			
+			//if (line.isEmpty()) continue;
+			//line.append('\n');
 			receiveTextEdit->append(line);
 			pd->setValue(idx);
 			++idx;
@@ -213,7 +214,8 @@ void MonitorTestTool::runImport()
 		QTextStream in(&file);
 		QString line;
 		while (in.readLineInto(&line)) {
-			//if (line.isEmpty()) continue;			
+			//if (line.isEmpty()) continue;
+			//line.append('\n');
 			receiveTextEdit->append(line);
 		}	
 	}

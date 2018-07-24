@@ -122,6 +122,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="monitortesttool.cpp" />
+    <ClCompile Include="singlelogger.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -136,6 +139,7 @@
       <Define Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;WIN32;WIN64;QT_DLL;QT_NO_DEBUG;NDEBUG;QT_CONCURRENT_LIB;QT_CORE_LIB;QT_GUI_LIB;QT_NETWORK_LIB;QT_POSITIONING_LIB;QT_PRINTSUPPORT_LIB;QT_QML_LIB;QT_SERIALBUS_LIB;QT_SERIALPORT_LIB;QT_UITOOLS_LIB;QT_WEBCHANNEL_LIB;QT_WEBSOCKETS_LIB;QT_WEBENGINE_LIB;QT_WEBENGINECORE_LIB;QT_WEBENGINEWIDGETS_LIB;QT_WIDGETS_LIB;QT_WINEXTRAS_LIB</Define>
     </ClInclude>
     <ClInclude Include="qdoublebufferedqueue.h" />
+    <ClInclude Include="singlelogger.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>

@@ -48,6 +48,11 @@ public:
 		QMutexLocker locker(&mMutex);
 		return mQueue.empty();
 	}
+
+	void Clear() {
+		QMutexLocker locker(&mMutex);
+		mQueue.clear();
+	}
 private:
 	QQueue<Type> mQueue;
 	mutable QMutex mMutex;

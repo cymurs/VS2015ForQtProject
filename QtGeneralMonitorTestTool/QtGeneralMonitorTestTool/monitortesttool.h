@@ -4,6 +4,7 @@
 #include "ui_monitortesttool.h"
 #include "concurrentqueue.h"
 #include "qdoublebufferedqueue.h"
+#include "singlelogger.h"
 
 typedef QPair<QPointF, QString> Data;
 typedef QList<Data> DataList;
@@ -31,6 +32,7 @@ private Q_SLOTS:
 	void selectFile();
 	void runImport();
 	void cancelImport();
+	void saveSamplingSettings();
 	void onShow(const QString &, bool overwrite = false);	
 	void onShow(const QStringList &);
 	void onSeriesChanged(const QString &);
@@ -47,6 +49,7 @@ private:
 	QGroupBox *createReceiveGroup();
 	QGroupBox *createImportGroup();
 	QGroupBox *createChartGroup();
+	QGroupBox *createSamplingGroup();
 	QProgressDialog *createProgressDialog(qint32 min, qint32 max, const QString &text, const QString &title = tr(""));
 	void setupStatusBar();
 	void initWidgetsConnections();
@@ -60,6 +63,18 @@ private:
 	void showMessage(const QString &);
 
 private:
+	enum Channel {
+		CH1 = 0x01,
+		CH2 = 0x02,
+		CH3 = 0x04,
+		CH4 = 0x08
+	};
+	struct SeriesPacket {
+		PointList dataPoints;
+		QSplineSeries *splineSeries;
+		QScatterSeries *scatterSeries;
+	};
+
 //	Ui::MonitorTestToolClass ui;
 	bool isOpened;
 	bool isQuit;
@@ -81,14 +96,20 @@ private:
 	QPushButton *confirmButton;
 	QPushButton *cancelButton;
 	QTextEdit *receiveTextEdit;
+	QLineEdit *minValueLineEdit;
+	QLineEdit *maxValueLineEdit;
+	QLineEdit *samplingNumLineEdit;
+	QPushButton *saveButton;
 	QLabel *receiveLabel;
 	QLabel *threadLabel;
 	QStatusBar *statusBar;
 	QChart *splineChart;
-	QSplineSeries *splineSeries;
-	QScatterSeries *scatterSeries;
+	SeriesPacket seriesPackets[4];
+	//QSplineSeries *splineSeries;
+	//QScatterSeries *scatterSeries;
 	QValueAxis *axisX;
 	QValueAxis *axisY;
+	int channel;
 
 	QSerialPort *serial;
 	mutable QMutex serialMutex;
@@ -104,11 +125,13 @@ private:
 	//QWaitCondition recordCondition;
 
 	QString dataFile;
-
-	quint32 maxSize;
-	quint32 maxX;
-	quint32 maxY;
-	quint32 randCount;
+	
+	int maxX;
+	int minY;
+	int maxY;		
+	int tickCount;
+	int samplingNum;
+	int randCount;
 	DataTable dataTable;	
 	QFuture<void> retRead;
 	QFuture<void> retRecord;
