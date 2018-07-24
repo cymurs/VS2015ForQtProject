@@ -187,18 +187,28 @@ void MonitorTestTool::runImport()
 	}
 
 	receiveTextEdit->clear();
+	QSplineSeries *spline = seriesPackets[0].splineSeries;
+	QScatterSeries *scatter = seriesPackets[0].scatterSeries;
+	spline->clear();
+	scatter->clear();
 	
-	if (file.size() > 1024 * 5) {
+	//if (file.size() > 1024 * 5) {
 		QTextStream in(&file);
 		QString lines = in.readAll();
 		//onShow(lines, true);
-		qint32 max = lines.count('\n');		
+		int max = lines.count('\n');		
 		QScopedPointer<QProgressDialog> pd(createProgressDialog(0, max, tr("正在导入..."), tr("导入数据"))); 		
-		qint32 idx = 1;
+		int idx = 1;
 		QStringList list = lines.split('\n');
 		for (QString line : list)
 		{
-			//if (line.isEmpty()) continue;			
+			//if (line.isEmpty()) continue;
+			if (!line.isEmpty()){
+				QPointF value(idx, line.toDouble());
+				scatter->append(value);
+				spline->append(value);
+				axisX->setRange(idx - tickCount - 1, idx);
+			}			
 			receiveTextEdit->append(line);
 			pd->setValue(idx);
 			++idx;
@@ -209,14 +219,22 @@ void MonitorTestTool::runImport()
 			}
 		}
 		pd->close();
-	} else {
-		QTextStream in(&file);
-		QString line;
-		while (in.readLineInto(&line)) {
-			//if (line.isEmpty()) continue;			
-			receiveTextEdit->append(line);
-		}	
-	}
+	//} else {
+	//	QTextStream in(&file);
+	//	QString line;
+	//	//int idx = 1;
+	//	while (in.readLineInto(&line)) {
+	//		//if (line.isEmpty()) continue;
+	//		//if (!line.isEmpty()) {
+	//		//	QPointF value(idx, line.toDouble());
+	//		//	scatter->append(value);
+	//		//	spline->append(value);
+	//		//	axisX->setRange(idx - tickCount - 1, idx);
+	//		//	++idx;
+	//		//}
+	//		receiveTextEdit->append(line);
+	//	}	
+	//}
 	file.close();
 
 	showMessage(tr("导入完成!"));
@@ -487,12 +505,12 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 		if (id <= tickCount) {
 			spline->append(points);
 			scatter->append(points);
-			axisX->setRange(0, tickCount - 1);
+			//axisX->setRange(0, tickCount - 1);
 		} else if (id > tickCount) {
 			PointList &pieces = points.mid(id - tickCount - 1, tickCount);
 			spline->append(pieces);
 			scatter->append(pieces);
-			axisX->setRange(id - tickCount, id);			
+			axisX->setRange(id - tickCount, id);	
 		}
 	}
 }
