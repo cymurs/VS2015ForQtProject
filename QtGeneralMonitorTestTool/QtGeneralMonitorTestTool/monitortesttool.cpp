@@ -528,21 +528,25 @@ void MonitorTestTool::onSeriesChanged(const QStringList &dataList)
 void MonitorTestTool::onDataUpdateTimer()
 {
 	QString *packet;
-	QString data("");
+	QString data(""), dataShow("");
 	qint32 count = windowQueue.get(&packet);	
 	//QElapsedTimer timer;
 	//timer.start();
 	
 	if (count > 0) {
 		data = packet[0];
+		dataShow = packet[0];
 		if (count > 1) {
-			for (qint32 i=1; i<count; ++i)
+			for (qint32 i=1; i<count; ++i) {
 				data.sprintf("%s\n%s", qPrintable(data), qPrintable(packet[i]));
+				dataShow.sprintf("%s\n%s", qPrintable(packet[i]), qPrintable(data));
+			}
 		}
 		data.append("\n");
+		dataShow.append("\n");
 		showMessage(data);
 		onSeriesChanged(data);
-		onShow(data);
+		onShow(dataShow);
 	}
 
 	//if (timer.elapsed() > 200)
