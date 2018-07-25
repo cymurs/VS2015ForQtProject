@@ -21,6 +21,19 @@ Q_SIGNALS:
 	void debugUpdate(qint64, const QString &);
 	void sendData(const QString &);
 
+private:
+	enum Channel {
+		CH1 = 0x01,
+		CH2 = 0x02,
+		CH3 = 0x04,
+		CH4 = 0x08
+	};
+	struct SeriesPacket {
+		PointList dataPoints;
+		QSplineSeries *splineSeries;
+		QScatterSeries *scatterSeries;
+	};
+
 public:
 	MonitorTestTool(QWidget *parent = Q_NULLPTR);
 	virtual ~MonitorTestTool();
@@ -31,7 +44,7 @@ private Q_SLOTS:
 	void closeSerialPort();
 	void selectFile();
 	void runImport();
-	void cancelImport();
+	void clearData();
 	void saveSamplingSettings();
 	void onShow(const QString &, bool overwrite = false);	
 	void onShow(const QStringList &);
@@ -61,48 +74,39 @@ private:
 	void runThread();
 	bool parseData(const QString &data, QStringList &result);
 	void showMessage(const QString &);
+	bool addSeries(int x, const QString &d, Channel ch = CH1);
+
 
 private:
-	enum Channel {
-		CH1 = 0x01,
-		CH2 = 0x02,
-		CH3 = 0x04,
-		CH4 = 0x08
-	};
-	struct SeriesPacket {
-		PointList dataPoints;
-		QSplineSeries *splineSeries;
-		QScatterSeries *scatterSeries;
-	};
-
 //	Ui::MonitorTestToolClass ui;
 	bool isOpened;
 	bool isQuit;
-	QLabel *serialPortLabel;
+	// 串口设置
 	QComboBox *serialPortComboBox;
-	QLabel *baudRateLabel;
 	QComboBox *baudRateComboBox;
-	QLabel *dataBitsLabel;
 	QComboBox *dataBitsComboBox;
-	QLabel *stopBitsLabel;
 	QComboBox *stopBitsComboBox;
-	QLabel *parityLabel;
 	QComboBox *parityComboBox;
 	QPushButton *runButton;
 	QPushButton *stopButton;
-	QLabel *dataFileLabel;
+	// 导入数据
 	QLineEdit *dataFileLineEdit;
 	QPushButton *selectButton;
-	QPushButton *confirmButton;
-	QPushButton *cancelButton;
+	QPushButton *importButton;
+	// 接收数据
+	QPushButton *clearButton;
 	QTextEdit *receiveTextEdit;
+	// 实时图设置
 	QLineEdit *minValueLineEdit;
 	QLineEdit *maxValueLineEdit;
 	QLineEdit *samplingNumLineEdit;
+	QSpinBox *tickCountSpinBox;
 	QPushButton *saveButton;
+	// 状态栏
 	QLabel *receiveLabel;
 	QLabel *threadLabel;
 	QStatusBar *statusBar;
+	// 曲线图
 	QChart *splineChart;
 	SeriesPacket seriesPackets[4];
 	//QSplineSeries *splineSeries;
@@ -119,14 +123,11 @@ private:
 	QString frameHead;
 	QString frameTail;
 
+	QString dataFile;
 	QString record;
 	mutable QMutex recordMutex;
 	mutable QMutex writeMutex;
-	//QWaitCondition recordCondition;
-
-	QString dataFile;
-	
-	int maxX;
+		
 	int minY;
 	int maxY;		
 	int tickCount;

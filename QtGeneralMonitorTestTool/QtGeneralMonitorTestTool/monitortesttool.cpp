@@ -5,29 +5,11 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	: QDialog(parent)//QMainWindow(parent)
 	, isOpened(true)
 	, isQuit(false)
-	, serialPortLabel(new QLabel(tr("端口号: ")))
-	, serialPortComboBox(new QComboBox())
-	, baudRateLabel(new QLabel(tr("波特率: ")))
-	, baudRateComboBox(new QComboBox())
-	, dataBitsLabel(new QLabel(tr("数据位: ")))
-	, dataBitsComboBox(new QComboBox())
-	, stopBitsLabel(new QLabel(tr("停止位: ")))
-	, stopBitsComboBox(new QComboBox())
-	, parityLabel(new QLabel(tr("校验位: ")))
-	, parityComboBox(new QComboBox())
-	, runButton(new QPushButton(tr("打开串口")))
-	, stopButton(new QPushButton(tr("停止")))
-	, dataFileLabel(new QLabel(tr("数据源位置:")))
-	, dataFileLineEdit(new QLineEdit())
-	, selectButton(new QPushButton(tr("浏览...")))
-	, confirmButton(new QPushButton(tr("导入")))
-	, cancelButton(new QPushButton(tr("清空")))
-	, receiveTextEdit(new QTextEdit(tr("准备中......")))
 	, statusBar(new QStatusBar())
 	, serial(new QSerialPort(this))
 	, serialMutex(QMutex::Recursive)
 	, dataFile("")	
-	, maxX(50)
+	, record("")
 	, minY(0)
 	, maxY(100)
 	, tickCount(10)
@@ -38,14 +20,13 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	, frameTail("AA")
 	, channel(CH1)
 {
-//	ui.setupUi(this);
-
+	//ui.setupUi(this);
 	// 增加最大最小化按钮
 	setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
+	setWindowTitle("Real-Time Monitor Test Tool");
 	//setupStatusBar();
 	
 	
-
 	auto leftLayout = new QVBoxLayout();
 	leftLayout->addWidget(createSettingsGroup());
 	leftLayout->addWidget(createImportGroup());
@@ -63,14 +44,15 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	baseLayout->setColumnStretch(1, 4);
 	setLayout(baseLayout);
 	
-	
-	
+		
 	initWidgetsStyle();
 	initWidgetsConnections();
 	
+
 	// 初始化日志对象
 	SingleLogger::instance().setLogFile("logs/my.log");
 	//windowTimer.setInterval(interval);
+
 
 	//emit debugUpdate(quintptr(QThread::currentThreadId()), tr("MonitorTestTool"));
 	//QMessageBox::critical(this, tr("Critical Test"), tr("[%1]MonitorTestTool").arg(quintptr(QThread::currentThreadId())));
@@ -126,8 +108,8 @@ void MonitorTestTool::openSerialPort()
 	if (serial->isOpen()) {
 		isOpened = true;
 		runButton->setEnabled(false);		
-		confirmButton->setEnabled(false);
-		cancelButton->setEnabled(false);
+		importButton->setEnabled(false);
+		clearButton->setEnabled(false);
 		saveButton->setEnabled(false);
 		stopButton->setEnabled(true);		
 		windowTimer.start(interval);
@@ -149,8 +131,8 @@ void MonitorTestTool::closeSerialPort()
 	//}
 	if (runButton) {
 		runButton->setEnabled(true);		
-		confirmButton->setEnabled(true);
-		cancelButton->setEnabled(true);
+		importButton->setEnabled(true);
+		clearButton->setEnabled(true);
 		saveButton->setEnabled(true);
 		stopButton->setEnabled(false);
 	}
@@ -187,10 +169,10 @@ void MonitorTestTool::runImport()
 	}
 
 	receiveTextEdit->clear();
-	QSplineSeries *spline = seriesPackets[0].splineSeries;
-	QScatterSeries *scatter = seriesPackets[0].scatterSeries;
-	spline->clear();
-	scatter->clear();
+	//QSplineSeries *spline = seriesPackets[0].splineSeries;
+	//QScatterSeries *scatter = seriesPackets[0].scatterSeries;
+	//spline->clear();
+	//scatter->clear();
 	
 	//if (file.size() > 1024 * 5) {
 		QTextStream in(&file);
@@ -198,23 +180,26 @@ void MonitorTestTool::runImport()
 		//onShow(lines, true);
 		int max = lines.count('\n');		
 		QScopedPointer<QProgressDialog> pd(createProgressDialog(0, max, tr("正在导入..."), tr("导入数据"))); 		
-		int idx = 1;
+		int idprog(1), idx(1);
 		QStringList list = lines.split('\n');
 		for (QString line : list)
 		{
 			//if (line.isEmpty()) continue;
-			if (!line.isEmpty()){
+			/*if (!line.isEmpty()){
 				QPointF value(idx, line.toDouble());
 				scatter->append(value);
 				spline->append(value);
-				axisX->setRange(idx - tickCount - 1, idx);
-			}			
+				if (idx >=  tickCount)
+					axisX->setRange(idx - tickCount + 1, idx);
+			}*/					
 			receiveTextEdit->append(line);
-			pd->setValue(idx);
-			++idx;
+			pd->setValue(idprog++);
+			if (addSeries(idx, line))
+				++idx;
 
 			if (pd->wasCanceled()) {
 				receiveTextEdit->clear();
+				addSeries(0, "");
 				break;
 			}
 		}
@@ -229,7 +214,7 @@ void MonitorTestTool::runImport()
 	//		//	QPointF value(idx, line.toDouble());
 	//		//	scatter->append(value);
 	//		//	spline->append(value);
-	//		//	axisX->setRange(idx - tickCount - 1, idx);
+	//		//	axisX->setRange(idx - tickCount + 1, idx);
 	//		//	++idx;
 	//		//}
 	//		receiveTextEdit->append(line);
@@ -240,7 +225,7 @@ void MonitorTestTool::runImport()
 	showMessage(tr("导入完成!"));
 }
 
-void MonitorTestTool::cancelImport()
+void MonitorTestTool::clearData()
 {
 	receiveTextEdit->clear();
 	if (dataFile.isEmpty())  return;	
@@ -254,7 +239,11 @@ void MonitorTestTool::saveSamplingSettings()
 	int curMin = minValueLineEdit->text().toInt();
 	int curMax = maxValueLineEdit->text().toInt();
 	int curNum = samplingNumLineEdit->text().toInt();
-	if (curMin == minY && curMax == maxY && curNum == samplingNum) return;	
+	int curTick = tickCountSpinBox->text().toInt();
+	if (curMin == minY && curMax == maxY 
+		&& curNum == samplingNum
+		&& curTick == tickCount) 
+		return;	
 	if (curMin >= curMax) {
 		QMessageBox::warning(this, tr("警告"), tr("最小采样值不能 ≥ 最大采样值!"));
 		minValueLineEdit->setFocus();
@@ -272,6 +261,14 @@ void MonitorTestTool::saveSamplingSettings()
 	minY = curMin;
 	maxY = curMax;
 	samplingNum = curNum;
+	tickCount = curTick;
+	axisX->setTickCount(tickCount);	
+	qreal xMax = axisX->max();
+	if (xMax < tickCount) {
+		axisX->setRange(0, tickCount - 1);
+	} else {
+		axisX->setRange(xMax - tickCount + 1, xMax);
+	}
 }
 
 void MonitorTestTool::recordData()
@@ -328,7 +325,7 @@ void MonitorTestTool::recordData()
 // 测试
 void MonitorTestTool::debugTips(qint64 tid, const QString &where)
 {
-	QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
+	//QMessageBox::information(this, tr("debug tips"), tr("%1 threadId=%2").arg(where).arg(tid));
 	if (statusBar) {		
 		statusBar->showMessage(tr("[%1]%2.").arg(tid).arg(where), 4000);
 		//threadLabel->setText(tr("[%1]%2.").arg(tid).arg(where));
@@ -464,7 +461,9 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 	//if (0 == id % 2)
 	//	QCoreApplication::processEvents();
 
+	// 后续可将dataPoints与setRange拆分，置于不同的线程中
 	Channel chans[] = {CH1, CH2, CH3, CH4};
+	const int MaxTickCount = 50;
 	for (int i = 0; i < 4; ++i) {
 		if (!(chans[i] & channel)) continue;
 
@@ -489,7 +488,7 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 			QVector<QStringRef> vecData = data.splitRef('\n', QString::SkipEmptyParts);
 			for (const QStringRef &d : vecData) {
 				y = d.toDouble();
-				if (y > maxY) {
+				if (y > maxY || y < minY) {
 					showMessage(tr("Axis Y(=%1) bigger than maxY(=%2)\
 						and shouldn't smaller than minY(=%3)! ").arg(y).arg(maxY).arg(minY));
 					continue;
@@ -505,12 +504,17 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 		if (id <= tickCount) {
 			spline->append(points);
 			scatter->append(points);
-			//axisX->setRange(0, tickCount - 1);
-		} else if (id > tickCount) {
-			PointList &pieces = points.mid(id - tickCount - 1, tickCount);
+			axisX->setRange(0, tickCount - 1);
+		} else if (id <= MaxTickCount) {
+			//PointList &pieces = points.mid(id - tickCount - 1, tickCount);
+			spline->append(points);
+			scatter->append(points);
+			axisX->setRange(id - tickCount, id - 1);	
+		} else {
+			PointList &pieces = points.mid(id - MaxTickCount - 1, MaxTickCount);
 			spline->append(pieces);
 			scatter->append(pieces);
-			axisX->setRange(id - tickCount, id);	
+			axisX->setRange(id - tickCount, id - 1);
 		}
 	}
 }
@@ -548,6 +552,38 @@ void MonitorTestTool::onDataUpdateTimer()
 void MonitorTestTool::showMessage(const QString &s)
 {
 	statusBar->showMessage(s);
+}
+
+bool MonitorTestTool::addSeries(int x, const QString &d, Channel ch)
+{
+	Channel chans[] = {CH1, CH2, CH3, CH4};
+	for (int i = 0; i < sizeof(chans)/sizeof(Channel); ++i) {
+		if (!(chans[i] & ch)) continue;
+
+		QSplineSeries *spline = seriesPackets[i].splineSeries;
+		QScatterSeries *scatter = seriesPackets[i].scatterSeries;
+		if (0 == x || 1 == x) {
+			spline->clear();
+			scatter->clear();
+			axisX->setRange(0, tickCount - 1);
+		}
+		
+		if (d.isEmpty())  return false;
+
+		double y = d.toDouble();
+		if (y < minY || y > maxY) {
+			showMessage(tr("Axis Y(=%1) shouldn't bigger than maxY(=%2) \
+					and shouldn't smaller than minY(=%3)! ").arg(y).arg(maxY).arg(minY));
+			return false;
+		}
+		QPointF value(x, y);
+		scatter->append(value);
+		spline->append(value);
+		if (x > tickCount)
+			axisX->setRange(x - tickCount + 1, x);		
+
+		return true;
+	}
 }
 
 void MonitorTestTool::readData()
@@ -654,6 +690,19 @@ DataTable MonitorTestTool::generateRandomData(int listCount, int valueMax, int v
 
 QGroupBox * MonitorTestTool::createSettingsGroup()
 {
+	auto serialPortLabel = new QLabel(tr("端口号: "), this);
+	serialPortComboBox = new QComboBox(this);
+	auto baudRateLabel = new QLabel(tr("波特率: "), this);
+	baudRateComboBox = new QComboBox(this);
+	auto dataBitsLabel = new QLabel(tr("数据位: "), this);
+	dataBitsComboBox = new QComboBox(this);
+	auto stopBitsLabel = new QLabel(tr("停止位: "), this);
+	stopBitsComboBox = new QComboBox(this);
+	auto parityLabel = new QLabel(tr("校验位: "), this);
+	parityComboBox = new QComboBox(this);
+	runButton = new QPushButton(tr("打开串口"), this);
+	stopButton = new QPushButton(tr("停止"), this);
+	
 	const auto infos = QSerialPortInfo::availablePorts();
 	for (const QSerialPortInfo &info : infos)
 		serialPortComboBox->addItem(info.portName());
@@ -709,9 +758,12 @@ QGroupBox * MonitorTestTool::createSettingsGroup()
 
 QGroupBox * MonitorTestTool::createReceiveGroup()
 {	
+	clearButton = new QPushButton(tr("清空"), this);
+	receiveTextEdit = new QTextEdit(tr("准备中......"), this);
+	
 	auto receiveLayout = new QGridLayout();
 	receiveLayout->addWidget(receiveTextEdit, 0, 0, 1, 5);
-	receiveLayout->addWidget(cancelButton, 1, 4);
+	receiveLayout->addWidget(clearButton, 1, 4);
 
 	auto receiveGropBox = new QGroupBox(tr("接收数据"));
 	receiveGropBox->setLayout(receiveLayout);
@@ -722,12 +774,17 @@ QGroupBox * MonitorTestTool::createReceiveGroup()
 
 QGroupBox * MonitorTestTool::createImportGroup()
 {
+	auto dataFileLabel = new QLabel(tr("数据源位置:"), this);
+	dataFileLineEdit = new QLineEdit(this);
+	selectButton = new QPushButton(tr("浏览..."), this);
+	importButton = new QPushButton(tr("导入"), this);
+	
 	auto importLayout = new QGridLayout;
 	importLayout->addWidget(dataFileLabel, 0, 0);
 	importLayout->addWidget(dataFileLineEdit, 1, 0, 1, 3);
 	importLayout->addWidget(selectButton, 1, 3);
-	importLayout->addWidget(confirmButton, 1, 4);
-	//importLayout->addWidget(cancelButton, 2, 3);
+	importLayout->addWidget(importButton, 1, 4);
+	//importLayout->addWidget(clearButton, 2, 3);
 	
 	auto openingGroupBox = new QGroupBox(tr("导入数据"));
 	openingGroupBox->setLayout(importLayout);
@@ -739,8 +796,13 @@ QGroupBox *MonitorTestTool::createChartGroup()
 {
 	// spine chart
 	splineChart = new QChart();
-	splineChart->setTitle("Realtime Serial Data Chart");
-	splineChart->setTheme(QChart::ChartThemeBlueNcs);
+	QFont font;
+	font.setPixelSize(18);
+	font.setBold(true);
+	splineChart->setTitleFont(font);
+	//splineChart->setTitleBrush(QBrush(Qt::red));
+	splineChart->setTitle("Serial Data Real-Time Chart");
+	//splineChart->setTheme(QChart::ChartThemeBlueNcs); // 与样式设置冲突
 	//splineChart->setAnimationOptions(QChart::SeriesAnimations);
 	splineChart->legend()->hide();
 
@@ -772,8 +834,9 @@ QGroupBox *MonitorTestTool::createChartGroup()
 		disconnect(packet.splineSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
 
 		packet.scatterSeries = new QScatterSeries(splineChart);
+		packet.scatterSeries->setBrush(QBrush(QColor(19, 65, 166, 5)));
 		packet.scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-		packet.scatterSeries->setMarkerSize(3);
+		packet.scatterSeries->setMarkerSize(5); 
 		packet.scatterSeries->setUseOpenGL(true);
 		splineChart->addSeries(packet.scatterSeries);
 		splineChart->setAxisX(axisX, packet.scatterSeries);
@@ -831,22 +894,30 @@ QGroupBox * MonitorTestTool::createSamplingGroup()
 	minValueLineEdit = new QLineEdit("0", this);
 	auto maxSamplingLabel = new QLabel(tr("最大采样值: "), this);
 	maxValueLineEdit = new QLineEdit("100", this);
-	auto maxSizeLabel = new QLabel(tr("采集个数: "), this);
+	auto tickCountLabel = new QLabel(tr("显示个数: "), this);
+	tickCountSpinBox = new QSpinBox(this);
+	tickCountSpinBox->setRange(10, 50);
+	tickCountSpinBox->setSingleStep(10);	
+	auto samplingNumLabel = new QLabel(tr("采集个数: "), this);
 	samplingNumLineEdit = new QLineEdit("10000", this);
 	saveButton = new QPushButton(tr("保存设置"), this);
 
+	const int stretch = 1;
 	auto samplingLayout = new QHBoxLayout;
 	samplingLayout->addWidget(minSamplingLabel, 1);
 	samplingLayout->addWidget(minValueLineEdit, 2);
-	samplingLayout->addStretch(2);
+	samplingLayout->addStretch(stretch);
 	samplingLayout->addWidget(maxSamplingLabel, 1);
 	samplingLayout->addWidget(maxValueLineEdit, 2);
-	samplingLayout->addStretch(2);
-	samplingLayout->addWidget(maxSizeLabel, 1);
+	samplingLayout->addStretch(stretch);
+	samplingLayout->addWidget(tickCountLabel, 1);
+	samplingLayout->addWidget(tickCountSpinBox, 2);
+	samplingLayout->addStretch(stretch);
+	samplingLayout->addWidget(samplingNumLabel, 1);
 	samplingLayout->addWidget(samplingNumLineEdit, 2);
-	samplingLayout->addStretch(2);
+	samplingLayout->addStretch(stretch);
 	samplingLayout->addWidget(saveButton, 1);
-	samplingLayout->addStretch(3);
+	//samplingLayout->addStretch(3);
 
 	auto samplingBox = new QGroupBox(tr("实时曲线图设置"));
 	samplingBox->setLayout(samplingLayout);
@@ -886,8 +957,8 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(runButton, &QPushButton::clicked, this, &MonitorTestTool::openSerialPort);	
 	connect(stopButton, &QPushButton::clicked, this, &MonitorTestTool::closeSerialPort);
 	connect(selectButton, &QPushButton::clicked, this, &MonitorTestTool::selectFile);
-	connect(confirmButton, &QPushButton::clicked, this, &MonitorTestTool::runImport);
-	connect(cancelButton, &QPushButton::clicked, this, &MonitorTestTool::cancelImport);
+	connect(importButton, &QPushButton::clicked, this, &MonitorTestTool::runImport);
+	connect(clearButton, &QPushButton::clicked, this, &MonitorTestTool::clearData);
 	connect(saveButton, &QPushButton::clicked, this, &MonitorTestTool::saveSamplingSettings);
 	connect(&windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
 
@@ -909,11 +980,6 @@ void MonitorTestTool::initWidgetsStyle()
 
 void MonitorTestTool::deleteWidgets()
 {
-	delete serialPortLabel;
-	delete baudRateLabel;
-	delete dataBitsLabel;
-	delete stopBitsLabel;
-	delete parityLabel;
 	delete serialPortComboBox;
 	delete baudRateComboBox;
 	delete dataBitsComboBox;
@@ -922,11 +988,10 @@ void MonitorTestTool::deleteWidgets()
 	delete runButton;
 	delete stopButton;
 
-	delete dataFileLabel;
 	delete dataFileLineEdit;
 	delete selectButton;
-	delete confirmButton;
-	delete cancelButton;
+	delete importButton;
+	delete clearButton;
 
 	delete receiveTextEdit;
 	delete statusBar;
@@ -935,11 +1000,6 @@ void MonitorTestTool::deleteWidgets()
 	//delete scatterSeries;
 
 
-	serialPortLabel = Q_NULLPTR;
-	baudRateLabel = Q_NULLPTR;
-	dataBitsLabel = Q_NULLPTR;
-	stopBitsLabel = Q_NULLPTR;
-	parityLabel = Q_NULLPTR;
 	serialPortComboBox = Q_NULLPTR;
 	baudRateComboBox = Q_NULLPTR;
 	dataBitsComboBox = Q_NULLPTR;
@@ -948,11 +1008,10 @@ void MonitorTestTool::deleteWidgets()
 	runButton = Q_NULLPTR;
 	stopButton = Q_NULLPTR;
 
-	dataFileLabel = Q_NULLPTR;
 	dataFileLineEdit = Q_NULLPTR;
 	selectButton = Q_NULLPTR;
-	confirmButton = Q_NULLPTR;
-	cancelButton = Q_NULLPTR;
+	importButton = Q_NULLPTR;
+	clearButton = Q_NULLPTR;
 
 	receiveTextEdit = Q_NULLPTR;
 	statusBar = Q_NULLPTR;
