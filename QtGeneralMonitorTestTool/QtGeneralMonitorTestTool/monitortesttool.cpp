@@ -273,6 +273,7 @@ void MonitorTestTool::saveSamplingSettings()
 
 void MonitorTestTool::recordData()
 {	
+	TRACE_INFO(tr("***%1***recordData start").arg(quintptr(QThread::currentThreadId())));
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData restart"));
 
@@ -318,6 +319,7 @@ void MonitorTestTool::recordData()
 	if (rfile.isOpen())
 		rfile.close();
 
+	TRACE_INFO(tr("***%1***recordData quit").arg(quintptr(QThread::currentThreadId())));
 	//if (!isQuit)
 	//	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData quit"));
 }
@@ -592,6 +594,7 @@ bool MonitorTestTool::addSeries(int x, const QString &d, Channel ch)
 
 void MonitorTestTool::readData()
 {
+	TRACE_INFO(tr("***%1***readData begin").arg(quintptr(QThread::currentThreadId())));
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData begin"));
 
@@ -616,13 +619,14 @@ void MonitorTestTool::readData()
 			emit sendData(err);
 	}
 
-	//TRACE_WARNING(tr("***%1***readData end").arg(quintptr(QThread::currentThreadId())));
+	TRACE_INFO(tr("***%1***readData end").arg(quintptr(QThread::currentThreadId())));
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData end"));
 }
 
 void MonitorTestTool::handleData()
 {	
+	TRACE_INFO(tr("***%1***handleData start").arg(quintptr(QThread::currentThreadId())));
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData start"));
 
@@ -648,7 +652,8 @@ void MonitorTestTool::handleData()
 	//} while (isOpened || (!isQuit && !queue.Empty()));
 	
 	queue.Clear();
-	//TRACE_INFO(tr("***%1***handleData stop").arg(quintptr(QThread::currentThreadId())));
+
+	TRACE_INFO(tr("***%1***handleData stop").arg(quintptr(QThread::currentThreadId())));
 	//if (!isQuit)
 	//	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData stop"));
 }
