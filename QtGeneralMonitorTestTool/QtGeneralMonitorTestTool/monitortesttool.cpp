@@ -50,8 +50,10 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	
 
 	// 初始化日志对象
-	SingleLogger::instance().setLogFile("logs/my.log");
-	//windowTimer.setInterval(interval);
+	SingleLogger::instance().setLogFile("logs/record.log");
+	QString recordname = QDateTime::currentDateTime().toString("yyyyMMdd_hh");
+	recordname.append(".csv");
+	rfile.setFileName(recordname);
 
 
 	//emit debugUpdate(quintptr(QThread::currentThreadId()), tr("MonitorTestTool"));
@@ -113,6 +115,7 @@ void MonitorTestTool::openSerialPort()
 		saveButton->setEnabled(false);
 		stopButton->setEnabled(true);		
 		windowTimer.start(interval);
+		recordTimer.start(RecordInterval);
 
 		runThread();				
 	}
@@ -138,6 +141,8 @@ void MonitorTestTool::closeSerialPort()
 	}
 	if (windowTimer.isActive())
 		windowTimer.stop();	
+	if (recordTimer.isActive())
+		recordTimer.stop();
 }
 
 void MonitorTestTool::selectFile()
@@ -273,11 +278,11 @@ void MonitorTestTool::saveSamplingSettings()
 
 void MonitorTestTool::recordData()
 {	
-	TRACE_INFO(tr("***%1***recordData start").arg(quintptr(QThread::currentThreadId())));
+	TRACE_INFO(tr("***%1***recordData enter").arg(quintptr(QThread::currentThreadId())));
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData restart"));
 
-	QFile rfile(RecordFile);
+	//QFile rfile(RecordFile);
 	while (isOpened) { // while (isOpened || !record.isEmpty())
 		try {			
 			// 每隔 2s 写一次文件
@@ -555,6 +560,19 @@ void MonitorTestTool::onDataUpdateTimer()
 	//	QCoreApplication::processEvents();
 }
 
+void MonitorTestTool::onRecordFileChangeTimer()
+{
+	QString recordname = QDateTime::currentDateTime().toString("yyyyMMdd_hh");
+	recordname.append(".csv");
+
+	QMutexLocker locker(&writeMutex);
+	if (rfile.isOpen()) rfile.close();
+	rfile.setFileName(recordname);
+	if (!rfile.open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Append)) {
+		QMessageBox::critical(this, tr("critical error"), tr("Open %1 failed!").arg(recordname));
+	}
+}
+
 void MonitorTestTool::showMessage(const QString &s)
 {
 	statusBar->showMessage(s);
@@ -586,10 +604,11 @@ bool MonitorTestTool::addSeries(int x, const QString &d, Channel ch)
 		scatter->append(value);
 		spline->append(value);
 		if (x > tickCount)
-			axisX->setRange(x - tickCount + 1, x);		
-
+			axisX->setRange(x - tickCount + 1, x);	
 		return true;
 	}
+
+	return true;
 }
 
 void MonitorTestTool::readData()
@@ -970,6 +989,7 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(clearButton, &QPushButton::clicked, this, &MonitorTestTool::clearData);
 	connect(saveButton, &QPushButton::clicked, this, &MonitorTestTool::saveSamplingSettings);
 	connect(&windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
+	connect(&recordTimer, &QTimer::timeout, this, &MonitorTestTool::onRecordFileChangeTimer);
 
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)), Qt::QueuedConnection);	
 	connect(this, SIGNAL(sendData(QString)), statusBar, SLOT(showMessage(QString)));

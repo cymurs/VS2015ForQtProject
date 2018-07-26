@@ -51,6 +51,7 @@ private Q_SLOTS:
 	void onSeriesChanged(const QString &);
 	void onSeriesChanged(const QStringList &);
 	void onDataUpdateTimer();
+	void onRecordFileChangeTimer();
 	void debugTips(qint64, const QString &);
 
 protected:
@@ -125,6 +126,8 @@ private:
 
 	QString dataFile;
 	QString record;
+	QFile rfile;
+	QTimer recordTimer;
 	mutable QMutex recordMutex;
 	mutable QMutex writeMutex;
 		
