@@ -29,6 +29,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	
 	auto leftLayout = new QVBoxLayout();
 	leftLayout->addWidget(createSettingsGroup());
+	leftLayout->addWidget(createFrameFormatGroup());
 	leftLayout->addWidget(createImportGroup());
 	leftLayout->addWidget(createReceiveGroup());	
 	//leftLayout->addWidget(statusBar);	
@@ -116,6 +117,8 @@ void MonitorTestTool::openSerialPort()
 		stopButton->setEnabled(true);		
 		windowTimer.start(interval);
 		recordTimer.start(RecordInterval);
+		frameHead = fheadLineEdit->text();
+		frameTail = ftailLineEdit->text();
 
 		runThread();				
 	}
@@ -477,7 +480,7 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 		PointList &points = seriesPackets[i].dataPoints;
 		QSplineSeries *spline = seriesPackets[i].splineSeries;
 		QScatterSeries *scatter = seriesPackets[i].scatterSeries;
-		int id = points.size();
+		int id = points.size();		
 		++id;
 
 		double y;
@@ -950,6 +953,25 @@ QGroupBox * MonitorTestTool::createSamplingGroup()
 	auto samplingBox = new QGroupBox(tr("实时曲线图设置"));
 	samplingBox->setLayout(samplingLayout);
 	return samplingBox;
+}
+
+QGroupBox * MonitorTestTool::createFrameFormatGroup()
+{
+	auto fheadLabel = new QLabel(tr("帧头: "), this);
+	fheadLineEdit = new QLineEdit(tr("A5"), this);
+	auto ftailLabel = new QLabel(tr("帧尾: "), this);
+	ftailLineEdit = new QLineEdit(tr("AA"), this);
+
+	auto frameLayout = new QGridLayout();
+	frameLayout->addWidget(fheadLabel, 0, 0);
+	frameLayout->addWidget(fheadLineEdit, 0, 1);	
+	frameLayout->addWidget(ftailLabel, 0, 3);
+	frameLayout->addWidget(ftailLineEdit, 0, 4);
+	frameLayout->setColumnMinimumWidth(2, 60);
+
+	auto frameBox = new QGroupBox(tr("帧格式设置"));
+	frameBox->setLayout(frameLayout);
+	return frameBox;
 }
 
 QProgressDialog * MonitorTestTool::createProgressDialog(qint32 min, qint32 max, const QString &text, const QString &title)

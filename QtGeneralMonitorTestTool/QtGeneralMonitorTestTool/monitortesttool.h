@@ -64,6 +64,7 @@ private:
 	QGroupBox *createImportGroup();
 	QGroupBox *createChartGroup();
 	QGroupBox *createSamplingGroup();
+	QGroupBox *createFrameFormatGroup();
 	QProgressDialog *createProgressDialog(qint32 min, qint32 max, const QString &text, const QString &title = tr(""));
 	void setupStatusBar();
 	void initWidgetsConnections();
@@ -90,6 +91,9 @@ private:
 	QComboBox *parityComboBox;
 	QPushButton *runButton;
 	QPushButton *stopButton;
+	// 帧格式
+	QLineEdit *fheadLineEdit;
+	QLineEdit *ftailLineEdit;
 	// 导入数据
 	QLineEdit *dataFileLineEdit;
 	QPushButton *selectButton;
