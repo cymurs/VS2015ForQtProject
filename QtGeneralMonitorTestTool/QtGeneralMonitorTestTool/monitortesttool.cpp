@@ -146,6 +146,11 @@ void MonitorTestTool::closeSerialPort()
 		windowTimer.stop();	
 	if (recordTimer.isActive())
 		recordTimer.stop();
+	//retRead.waitForFinished();
+	//retRecord.waitForFinished();
+	//retHandle.waitForFinished();
+
+	TRACE_INFO("All Terminate!!!");
 }
 
 void MonitorTestTool::selectFile()
@@ -289,7 +294,7 @@ void MonitorTestTool::recordData()
 	while (isOpened) { // while (isOpened || !record.isEmpty())
 		try {			
 			// 每隔 2s 写一次文件
-			QThread::sleep(2);
+			//QThread::sleep(2);
 			
 			QString strWriting("");
 			{
@@ -622,9 +627,9 @@ void MonitorTestTool::readData()
 
 	while (isOpened) {
 		QByteArray data;
-		QMutexLocker locker(&serialMutex);
+		//QMutexLocker locker(&serialMutex);
 		if (!serial->isOpen()) break;
-		if (serial->waitForReadyRead(100)) {
+		if (serial->waitForReadyRead(10)) {
 			QStringList list;
 			data = std::move(serial->readAll());
 			parseData(data, list);
