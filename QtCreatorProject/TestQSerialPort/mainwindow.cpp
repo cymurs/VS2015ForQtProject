@@ -34,20 +34,20 @@ void MainWindow::onButtonClicked()
         ui->pushButton->setText("stop");
 
         QString portName = ui->comboBox->currentText();
-        m_serialPort.setPortName(portName);
-        m_serialPort.setBaudRate(QSerialPort::Baud115200);
-        m_serialPort.setDataBits(QSerialPort::Data8);
-        m_serialPort.setParity(QSerialPort::NoParity);
-        m_serialPort.setStopBits(QSerialPort::OneStop);
-        m_serialPort.setFlowControl(QSerialPort::NoFlowControl);
-        m_serialPort.setReadBufferSize(128*1024);
+        m_serialPort->setPortName(portName);
+        m_serialPort->setBaudRate(QSerialPort::Baud115200);
+        m_serialPort->setDataBits(QSerialPort::Data8);
+        m_serialPort->setParity(QSerialPort::NoParity);
+        m_serialPort->setStopBits(QSerialPort::OneStop);
+        m_serialPort->setFlowControl(QSerialPort::NoFlowControl);
+        m_serialPort->setReadBufferSize(128*1024);
 
-        if (!m_serialPort.isOpen()) {
-            if (!m_serialPort.open(QIODevice::ReadOnly)) {
-                QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败: %2").arg(portName).arg(m_serialPort.errorString()));
+        if (!m_serialPort->isOpen()) {
+            if (!m_serialPort->open(QIODevice::ReadOnly)) {
+                QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败: %2").arg(portName).arg(m_serialPort->errorString()));
             }
         }
-        if (m_serialPort.isOpen()) {
+        if (m_serialPort->isOpen()) {
 //            m_showTimer.start();
 
             isOpened = true;
@@ -98,6 +98,7 @@ void MainWindow::onSeriesChanged()
 
 void MainWindow::Initialize()
 {
+    m_serialPort = new QSerialPort(this);
     const auto infos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : infos)
         ui->comboBox->addItem(info.portName());
@@ -154,8 +155,8 @@ void MainWindow::serialPortReadThread()
 {
     while (isOpened) {
         QByteArray data;
-        if (m_serialPort.waitForReadyRead(1000)) {
-            data = m_serialPort.readAll();
+        if (m_serialPort->waitForReadyRead(1000)) {
+            data = m_serialPort->readLine(1024);
             m_dbQueue.put(data);
         }
     }

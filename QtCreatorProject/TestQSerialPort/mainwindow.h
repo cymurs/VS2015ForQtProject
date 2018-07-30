@@ -44,7 +44,7 @@ private:
     Ui::MainWindow *ui;
     bool isOpened;
     bool isGenerateRand;
-    QSerialPort m_serialPort;
+    QSerialPort *m_serialPort;
     QTimer m_showTimer;
     QDoubleBufferedQueue<QString> m_dbQueue;
     QSplineSeries *m_splineSeries;
