@@ -30,8 +30,8 @@ private:
 	};
 	struct SeriesPacket {
 		PointList dataPoints;
-		QSplineSeries *splineSeries;
-		QScatterSeries *scatterSeries;
+		//QSplineSeries *splineSeries;
+		//QScatterSeries *scatterSeries;
 		QLineSeries *lineSeries;
 	};
 
@@ -47,6 +47,8 @@ private Q_SLOTS:
 	void runImport();
 	void clearData();
 	void saveSamplingSettings();
+	void handleReadyRead();
+	void handleError(QSerialPort::SerialPortError serialPortError);
 	void onShow(const QString &, bool overwrite = false);	
 	void onShow(const QStringList &);
 	void onSeriesChanged(const QString &);

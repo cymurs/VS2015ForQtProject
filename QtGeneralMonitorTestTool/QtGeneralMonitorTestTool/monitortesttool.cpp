@@ -64,7 +64,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 MonitorTestTool::~MonitorTestTool()
 {
 	closeSerialPort();
-	retRead.waitForFinished();
+	//retRead.waitForFinished();
 	retRecord.waitForFinished();
 	retHandle.waitForFinished();
 	// 终止日志线程
@@ -285,6 +285,19 @@ void MonitorTestTool::saveSamplingSettings()
 	}
 }
 
+void MonitorTestTool::handleReadyRead()
+{
+	QByteArray data = serial->readAll();
+	queue.Push(data);
+}
+
+void MonitorTestTool::handleError(QSerialPort::SerialPortError serialPortError)
+{
+	if (serialPortError != QSerialPort::NoError) {
+		showMessage(QObject::tr("Port %1 occurred error: %2").arg(serial->portName()).arg(serial->errorString()));
+	}
+}
+
 void MonitorTestTool::recordData()
 {	
 	TRACE_INFO(tr("***%1***recordData enter").arg(quintptr(QThread::currentThreadId())));
@@ -334,8 +347,8 @@ void MonitorTestTool::recordData()
 		rfile.close();
 
 	TRACE_INFO(tr("***%1***recordData quit").arg(quintptr(QThread::currentThreadId())));
-	//if (!isQuit)
-	//	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData quit"));
+	if (!isQuit)
+		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("recordData quit"));
 }
 
 // 测试
@@ -589,7 +602,7 @@ void MonitorTestTool::onRecordFileChangeTimer()
 
 void MonitorTestTool::showMessage(const QString &s)
 {
-	statusBar->showMessage(s);
+	statusBar->showMessage(s, 3000);
 }
 
 bool MonitorTestTool::addSeries(int x, const QString &d, Channel ch)
@@ -598,11 +611,13 @@ bool MonitorTestTool::addSeries(int x, const QString &d, Channel ch)
 	for (int i = 0; i < sizeof(chans)/sizeof(Channel); ++i) {
 		if (!(chans[i] & ch)) continue;
 
-		QSplineSeries *spline = seriesPackets[i].splineSeries;
-		QScatterSeries *scatter = seriesPackets[i].scatterSeries;
+		//QSplineSeries *spline = seriesPackets[i].splineSeries;
+		//QScatterSeries *scatter = seriesPackets[i].scatterSeries;
+		QLineSeries *line = seriesPackets[i].lineSeries;
 		if (0 == x || 1 == x) {
-			spline->clear();
-			scatter->clear();
+			//spline->clear();
+			//scatter->clear();
+			line->clear();
 			axisX->setRange(0, tickCount - 1);
 		}
 		
@@ -615,8 +630,9 @@ bool MonitorTestTool::addSeries(int x, const QString &d, Channel ch)
 			return false;
 		}
 		QPointF value(x, y);
-		scatter->append(value);
-		spline->append(value);
+		//scatter->append(value);
+		//spline->append(value);
+		line->append(value);
 		if (x > tickCount)
 			axisX->setRange(x - tickCount + 1, x);	
 		return true;
@@ -661,7 +677,7 @@ void MonitorTestTool::readData()
 		//	err = QObject::tr("No data was currently available for reading from port %1").arg(serial->portName());
 		//}
 		if (serial->error() != QSerialPort::NoError) {
-			err = QObject::tr("Port %1 acciden error: %2").arg(serial->portName()).arg(serial->errorString());
+			err = QObject::tr("Port %1 occurred error: %2").arg(serial->portName()).arg(serial->errorString());
 			serial->reset();
 		}
 		if (!err.isEmpty())
@@ -721,8 +737,8 @@ void MonitorTestTool::handleData()
 	queue.Clear();
 
 	TRACE_INFO(tr("***%1***handleData stop").arg(quintptr(QThread::currentThreadId())));
-	//if (!isQuit)
-	//	emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData stop"));
+	if (!isQuit)
+		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData stop"));
 }
 
 void MonitorTestTool::closeEvent(QCloseEvent *e)
@@ -903,22 +919,22 @@ QGroupBox *MonitorTestTool::createChartGroup()
 	for (auto &packet : seriesPackets) {
 		packet.dataPoints.reserve(samplingNum);
 		
-		packet.splineSeries = new QSplineSeries(splineChart);
-		packet.splineSeries->setUseOpenGL(true);
-		splineChart->addSeries(packet.splineSeries);
-		splineChart->setAxisX(axisX, packet.splineSeries);
-		splineChart->setAxisY(axisY, packet.splineSeries);
-		disconnect(packet.splineSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
+		//packet.splineSeries = new QSplineSeries(splineChart);
+		//packet.splineSeries->setUseOpenGL(true);
+		//splineChart->addSeries(packet.splineSeries);
+		//splineChart->setAxisX(axisX, packet.splineSeries);
+		//splineChart->setAxisY(axisY, packet.splineSeries);
+		//disconnect(packet.splineSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
 
-		packet.scatterSeries = new QScatterSeries(splineChart);
-		packet.scatterSeries->setBrush(QBrush(QColor(19, 65, 166, 5)));
-		packet.scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-		packet.scatterSeries->setMarkerSize(3); 
-		packet.scatterSeries->setUseOpenGL(true);
-		splineChart->addSeries(packet.scatterSeries);
-		splineChart->setAxisX(axisX, packet.scatterSeries);
-		splineChart->setAxisY(axisY, packet.scatterSeries);
-		disconnect(packet.scatterSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
+		//packet.scatterSeries = new QScatterSeries(splineChart);
+		//packet.scatterSeries->setBrush(QBrush(QColor(19, 65, 166, 5)));
+		//packet.scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+		//packet.scatterSeries->setMarkerSize(3); 
+		//packet.scatterSeries->setUseOpenGL(true);
+		//splineChart->addSeries(packet.scatterSeries);
+		//splineChart->setAxisX(axisX, packet.scatterSeries);
+		//splineChart->setAxisY(axisY, packet.scatterSeries);
+		//disconnect(packet.scatterSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
 
 		packet.lineSeries = new QLineSeries(splineChart);
 		packet.lineSeries->setUseOpenGL(true);
@@ -1069,6 +1085,9 @@ void MonitorTestTool::initWidgetsConnections()
 	connect(saveButton, &QPushButton::clicked, this, &MonitorTestTool::saveSamplingSettings);
 	connect(&windowTimer, &QTimer::timeout, this, &MonitorTestTool::onDataUpdateTimer);
 	connect(&recordTimer, &QTimer::timeout, this, &MonitorTestTool::onRecordFileChangeTimer);
+	connect(serial, &QSerialPort::readyRead, this, &MonitorTestTool::handleReadyRead);
+	connect(serial, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error), 
+		this, &MonitorTestTool::handleError);
 
 	connect(this, SIGNAL(debugUpdate(qint64, QString)), this, SLOT(debugTips(qint64, QString)), Qt::QueuedConnection);	
 	connect(this, SIGNAL(sendData(QString)), statusBar, SLOT(showMessage(QString)));
@@ -1130,7 +1149,7 @@ void MonitorTestTool::deleteWidgets()
 
 void MonitorTestTool::runThread()
 {
-	retRead = QtConcurrent::run(this, &MonitorTestTool::readData);
+	//retRead = QtConcurrent::run(this, &MonitorTestTool::readData);
 	retRecord = QtConcurrent::run(this, &MonitorTestTool::recordData);
 	retHandle = QtConcurrent::run(this, &MonitorTestTool::handleData);
 }
