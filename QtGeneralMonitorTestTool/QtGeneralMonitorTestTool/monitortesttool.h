@@ -32,6 +32,7 @@ private:
 		PointList dataPoints;
 		QSplineSeries *splineSeries;
 		QScatterSeries *scatterSeries;
+		QLineSeries *lineSeries;
 	};
 
 public:

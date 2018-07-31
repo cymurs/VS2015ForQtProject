@@ -102,6 +102,7 @@ void MonitorTestTool::openSerialPort()
 	serial->setParity(QSerialPort::Parity(parity));
 	serial->setStopBits(QSerialPort::StopBits(stopBits));
 	serial->setFlowControl(QSerialPort::NoFlowControl);
+	serial->setReadBufferSize(Buffer4Read);
 	if (!serial->isOpen()) {
 		if (!serial->open(QIODevice::ReadWrite)) {
 			QMessageBox::critical(this, tr("Critical Error"), tr("打开端口%1失败: %2").arg(portName).arg(serial->errorString()));
@@ -191,10 +192,10 @@ void MonitorTestTool::runImport()
 		QTextStream in(&file);
 		QString lines = in.readAll();
 		//onShow(lines, true);
-		int max = lines.count('\n');		
+		int max = lines.count(SplitChar);
 		QScopedPointer<QProgressDialog> pd(createProgressDialog(0, max, tr("正在导入..."), tr("导入数据"))); 		
 		int idprog(1), idx(1);
-		QStringList list = lines.split('\n');
+		QStringList list = lines.split(SplitChar);
 		for (QString line : list)
 		{
 			//if (line.isEmpty()) continue;
@@ -275,7 +276,7 @@ void MonitorTestTool::saveSamplingSettings()
 	maxY = curMax;
 	samplingNum = curNum;
 	tickCount = curTick;
-	axisX->setTickCount(tickCount);	
+	//axisX->setTickCount(tickCount);	
 	qreal xMax = axisX->max();
 	if (xMax < tickCount) {
 		axisX->setRange(0, tickCount - 1);
@@ -375,7 +376,7 @@ void MonitorTestTool::onShow(const QString &data, bool overwrite)
 
 void MonitorTestTool::onShow(const QStringList &dataList)
 {
-	QString data = dataList.join('\n');
+	QString data = dataList.join(SplitChar);
 	onShow(data);
 }
 
@@ -483,13 +484,14 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 		if (!(chans[i] & channel)) continue;
 
 		PointList &points = seriesPackets[i].dataPoints;
-		QSplineSeries *spline = seriesPackets[i].splineSeries;
-		QScatterSeries *scatter = seriesPackets[i].scatterSeries;
+		//QSplineSeries *spline = seriesPackets[i].splineSeries;
+		//QScatterSeries *scatter = seriesPackets[i].scatterSeries;
+		QLineSeries *line = seriesPackets[i].lineSeries;
 		int id = points.size();		
 		++id;
 
 		double y;
-		if (1 == data.count('\n')) {
+		if (1 == data.count(SplitChar)) {
 			y = data.toDouble();
 			if (y > maxY || y < minY) {
 				showMessage(tr("Axis Y(=%1) shouldn't bigger than maxY(=%2) \
@@ -500,7 +502,7 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 			points.append(value);
 			++id;
 		} else {
-			QVector<QStringRef> vecData = data.splitRef('\n', QString::SkipEmptyParts);
+			QVector<QStringRef> vecData = data.splitRef(SplitChar, QString::SkipEmptyParts);
 			for (const QStringRef &d : vecData) {
 				y = d.toDouble();
 				if (y > maxY || y < minY) {
@@ -514,21 +516,25 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 			}
 
 		}
-		spline->clear();
-		scatter->clear();
+		//spline->clear();
+		//scatter->clear();
 		if (id <= tickCount) {
-			spline->append(points);
-			scatter->append(points);
+			//spline->append(points);
+			//scatter->append(points);
+			line->replace(points);
 			axisX->setRange(0, tickCount - 1);
 		} else if (id <= MaxTickCount) {
 			//PointList &pieces = points.mid(id - tickCount - 1, tickCount);
-			spline->append(points);
-			scatter->append(points);
+			//spline->append(points);
+			//scatter->append(points);
+			line->replace(points);
 			axisX->setRange(id - tickCount, id - 1);	
 		} else {
-			PointList &pieces = points.mid(id - MaxTickCount - 1, MaxTickCount);
-			spline->append(pieces);
-			scatter->append(pieces);
+			//PointList &pieces = points.mid(id - MaxTickCount - 1, MaxTickCount);
+			PointList &pieces = points.mid(id - tickCount - 1, tickCount);
+			//spline->append(pieces);
+			//scatter->append(pieces);
+			line->replace(pieces);
 			axisX->setRange(id - tickCount, id - 1);
 		}
 	}
@@ -536,7 +542,7 @@ void MonitorTestTool::onSeriesChanged(const QString &data)
 
 void MonitorTestTool::onSeriesChanged(const QStringList &dataList)
 {
-	QString data = dataList.join('\n');
+	QString data = dataList.join(SplitChar);
 	onSeriesChanged(data);
 }
 
@@ -559,7 +565,7 @@ void MonitorTestTool::onDataUpdateTimer()
 		}
 		data.append("\n");
 		dataShow.append("\n");
-		showMessage(data);
+		//showMessage(data);
 		onSeriesChanged(data);
 		onShow(dataShow);
 	}
@@ -625,26 +631,44 @@ void MonitorTestTool::readData()
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("readData begin"));
 
+	qint64 sum(0);
+	char *data = new char[MaxBytesEveryTime + 1]();
 	while (isOpened) {
-		QByteArray data;
+		//QByteArray data;
 		//QMutexLocker locker(&serialMutex);
 		if (!serial->isOpen()) break;
-		if (serial->waitForReadyRead(10)) {
+		if (serial->waitForReadyRead(100)) {
 			QStringList list;
-			data = std::move(serial->readAll());
-			parseData(data, list);
-			for (const QString d : list)
-				queue.Push(d);			
+			//data = std::move(serial->readAll());
+			do {
+				//data = serial->readLine(MaxBytesEveryTime);	
+				int bytesRecv = serial->read(data, MaxBytesEveryTime);
+				if (bytesRecv != -1) {
+					data[bytesRecv] = '\0';
+					queue.Push(data);
+				}
+				memset(data, '\0', MaxBytesEveryTime + 1);
+
+				// 测试: 验证收发数据的一致性
+				//sum += data.size();
+				//emit sendData(QString::number(sum));
+			} while (serial->canReadLine());					
 		}
 		QString err;
-		if (serial->error() == QSerialPort::ReadError) {
-			err = QObject::tr("An I/O error occurred while reading the data from port %1, error: %2").arg(serial->portName()).arg(serial->errorString());			
-		} else if (serial->error() == QSerialPort::TimeoutError && data.isEmpty()) {
-			err = QObject::tr("No data was currently available for reading from port %1").arg(serial->portName());
+		//if (serial->error() == QSerialPort::ReadError) {
+		//	err = QObject::tr("An I/O error occurred while reading the data from port %1, error: %2").arg(serial->portName()).arg(serial->errorString());			
+		//} else if (serial->error() == QSerialPort::TimeoutError && data.isEmpty()) {
+		//	err = QObject::tr("No data was currently available for reading from port %1").arg(serial->portName());
+		//}
+		if (serial->error() != QSerialPort::NoError) {
+			err = QObject::tr("Port %1 acciden error: %2").arg(serial->portName()).arg(serial->errorString());
+			serial->reset();
 		}
 		if (!err.isEmpty())
 			emit sendData(err);
 	}
+	delete[] data;
+	data = nullptr;
 
 	TRACE_INFO(tr("***%1***readData end").arg(quintptr(QThread::currentThreadId())));
 	if (!isQuit)
@@ -657,7 +681,7 @@ void MonitorTestTool::handleData()
 	if (!isQuit)
 		emit debugUpdate(quintptr(QThread::currentThreadId()), tr("handleData start"));
 
-	QString data;
+	QString data, lefts;
 	do 
 	{
 		// 测试代码
@@ -666,14 +690,30 @@ void MonitorTestTool::handleData()
 		//windowQueue.put(data);
 		//QThread::msleep(100 * interval);
 		
-		if (queue.Pop(data, false)) {			
-			windowQueue.put(data);
-			{
-				QMutexLocker locker(&recordMutex);
-				data.append("\n");
-				record.append(data);
+		if (queue.Pop(data, false)) {									
+			lefts.append(data);
+
+			int sep;
+			if ((sep = lefts.lastIndexOf(frameTail)) == -1)
+				continue;
+			sep	+= frameTail.size();
+			QString input = lefts.left(sep);
+			QStringList result;
+			parseData(input, result);
+			if (sep == lefts.size())
+				lefts.clear();
+			else {
+				lefts.remove(0, sep);
 			}
 
+			for (auto d : result) {
+				windowQueue.put(d);
+				{
+					QMutexLocker locker(&recordMutex);
+					d.append("\n");
+					record.append(d);
+				}
+			}
 		}
 	} while (isOpened);
 	//} while (isOpened || (!isQuit && !queue.Empty()));
@@ -839,15 +879,16 @@ QGroupBox *MonitorTestTool::createChartGroup()
 	//splineChart->setTitleBrush(QBrush(Qt::red));
 	splineChart->setTitle("Serial Data Real-Time Chart");
 	//splineChart->setTheme(QChart::ChartThemeBlueNcs); // 与样式设置冲突
-	//splineChart->setAnimationOptions(QChart::SeriesAnimations);
+	splineChart->setAnimationOptions(QChart::NoAnimation);
 	splineChart->legend()->hide();
 
 	splineChart->createDefaultAxes();
 	axisX = new QValueAxis();
 	axisX->setRange(0, tickCount - 1);
 	axisX->setLabelFormat("%u"); //设置刻度的格式
-	axisX->setGridLineVisible(true);
-	axisX->setTickCount(tickCount);     //设置多少格
+	//axisX->setGridLineVisible(true);
+	//axisX->setTickCount(tickCount);     //设置多少格
+	axisX->setTickCount(2);
 	axisX->setTitleText(tr("Data point"));
 	//axisX->setMinorTickCount(1); //设置每格小刻度线的数目	
 	axisY = new QValueAxis();
@@ -872,12 +913,22 @@ QGroupBox *MonitorTestTool::createChartGroup()
 		packet.scatterSeries = new QScatterSeries(splineChart);
 		packet.scatterSeries->setBrush(QBrush(QColor(19, 65, 166, 5)));
 		packet.scatterSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-		packet.scatterSeries->setMarkerSize(5); 
+		packet.scatterSeries->setMarkerSize(3); 
 		packet.scatterSeries->setUseOpenGL(true);
 		splineChart->addSeries(packet.scatterSeries);
 		splineChart->setAxisX(axisX, packet.scatterSeries);
 		splineChart->setAxisY(axisY, packet.scatterSeries);
 		disconnect(packet.scatterSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
+
+		packet.lineSeries = new QLineSeries(splineChart);
+		packet.lineSeries->setUseOpenGL(true);
+		QPen pen(QColor(19, 65, 166, 5));
+		pen.setWidth(1);
+		packet.lineSeries->setPen(pen);
+		splineChart->addSeries(packet.lineSeries);
+		splineChart->setAxisX(axisX, packet.lineSeries);
+		splineChart->setAxisY(axisY, packet.lineSeries);
+		disconnect(packet.lineSeries, SIGNAL(pointRemoved(int)), splineView, SLOT(update()));
 	}
 
 	// 需要将坐标轴与series绑定
@@ -932,8 +983,9 @@ QGroupBox * MonitorTestTool::createSamplingGroup()
 	maxValueLineEdit = new QLineEdit("100", this);
 	auto tickCountLabel = new QLabel(tr("显示个数: "), this);
 	tickCountSpinBox = new QSpinBox(this);
-	tickCountSpinBox->setRange(10, 50);
-	tickCountSpinBox->setSingleStep(10);	
+	tickCountSpinBox->setRange(10, 1000);
+	//tickCountSpinBox->setMinimum(10); 
+	tickCountSpinBox->setSingleStep(5);
 	auto samplingNumLabel = new QLabel(tr("采集个数: "), this);
 	samplingNumLineEdit = new QLineEdit("10000", this);
 	saveButton = new QPushButton(tr("保存设置"), this);
@@ -1085,12 +1137,19 @@ void MonitorTestTool::runThread()
 
 bool MonitorTestTool::parseData(const QString &data, QStringList &result)
 {
-	if (!data.startsWith(frameHead)) return false;
+	if (!frameHead.isEmpty() && !data.startsWith(frameHead)) return false;
 
-	QStringList subs = data.split(frameHead, QString::SkipEmptyParts);
+	QStringList subs;
+	std::string format("%d");
+	if (!frameHead.isEmpty()) {
+		subs = data.split(frameHead, QString::SkipEmptyParts);
+		format.append(qPrintable(frameTail));
+	} else {
+		subs = data.split(frameTail, QString::SkipEmptyParts);
+	}
 	for (const QString &sub : subs) {
 		int value;		
-		sscanf(sub.toStdString().c_str(), "%dAA", &value);
+		sscanf(sub.toStdString().c_str(), format.c_str(), &value);
 		result.append(QString::number(value));
 	}
 

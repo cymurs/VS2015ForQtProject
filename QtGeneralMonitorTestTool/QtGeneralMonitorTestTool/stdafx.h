@@ -11,5 +11,8 @@
 #pragma execution_character_set("utf-8")  // 解决界面显示中文乱码
 
 extern const char *RecordFile;
+extern const char SplitChar;
 extern const int RecordInterval;
 extern const int interval;
+extern const int MaxBytesEveryTime;
+extern const int Buffer4Read;
