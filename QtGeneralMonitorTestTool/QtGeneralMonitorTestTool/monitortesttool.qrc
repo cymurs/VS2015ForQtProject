@@ -1,4 +1,5 @@
 <RCC>
-    <qresource prefix="MonitorTestTool">
+    <qresource prefix="/MonitorTestTool">
+        <file>ico/2.ico</file>
     </qresource>
 </RCC>
