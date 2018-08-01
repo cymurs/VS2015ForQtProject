@@ -24,6 +24,7 @@ MonitorTestTool::MonitorTestTool(QWidget *parent)
 	// 增加最大最小化按钮
 	setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 	setWindowTitle("Real-Time Monitor Test Tool");
+	setWindowIcon(QIcon(":/MonitorTestTool/ico/2.ico"));
 	//setupStatusBar();
 	
 	
@@ -114,12 +115,13 @@ void MonitorTestTool::openSerialPort()
 		runButton->setEnabled(false);		
 		importButton->setEnabled(false);
 		clearButton->setEnabled(false);
-		saveButton->setEnabled(false);
+		//saveButton->setEnabled(false);
 		stopButton->setEnabled(true);		
 		windowTimer.start(interval);
 		recordTimer.start(RecordInterval);
 		frameHead = fheadLineEdit->text();
 		frameTail = ftailLineEdit->text();
+		receiveTextEdit->clear();
 
 		runThread();				
 	}
@@ -140,7 +142,7 @@ void MonitorTestTool::closeSerialPort()
 		runButton->setEnabled(true);		
 		importButton->setEnabled(true);
 		clearButton->setEnabled(true);
-		saveButton->setEnabled(true);
+		//saveButton->setEnabled(true);
 		stopButton->setEnabled(false);
 	}
 	if (windowTimer.isActive())
@@ -287,8 +289,10 @@ void MonitorTestTool::saveSamplingSettings()
 
 void MonitorTestTool::handleReadyRead()
 {
-	QByteArray data = serial->readAll();
-	queue.Push(data);
+	if (isOpened) {
+		QByteArray data = serial->readAll();
+		queue.Push(data);
+	}
 }
 
 void MonitorTestTool::handleError(QSerialPort::SerialPortError serialPortError)
@@ -368,23 +372,37 @@ void MonitorTestTool::onShow(const QString &data, bool overwrite)
 		return;
 	}
 
+	const int MaxTickCount = 50;
 	qint32 cnt = receiveTextEdit->document()->lineCount();
-	qint32 diff = cnt - tickCount + 1;
+	qint32 diff = cnt - MaxTickCount; // tickCount
+
+	//if (diff > 0) {
+	//	receiveTextEdit->moveCursor(QTextCursor::End, QTextCursor::MoveAnchor);  // 位置在最后一行之后
+	//	receiveTextEdit->moveCursor(QTextCursor::Up, QTextCursor::KeepAnchor);  // 所以向上才能选中最后一行
+	//	--diff;
+	//	while (diff > 0) {
+	//		receiveTextEdit->moveCursor(QTextCursor::Up, QTextCursor::KeepAnchor);  // 所以向上才能选中最后一行
+	//		
+	//		--diff;
+	//	}	
+	//	receiveTextEdit->textCursor().removeSelectedText();
+	//}
+	//receiveTextEdit->moveCursor(QTextCursor::Start);
+	//receiveTextEdit->insertPlainText(data);
+	////receiveTextEdit->insertHtml(data);
 
 	if (diff > 0) {
-		receiveTextEdit->moveCursor(QTextCursor::End, QTextCursor::MoveAnchor);  // 位置在最后一行之后
-		receiveTextEdit->moveCursor(QTextCursor::Up, QTextCursor::KeepAnchor);  // 所以向上才能选中最后一行
+		receiveTextEdit->moveCursor(QTextCursor::Start, QTextCursor::MoveAnchor);  
+		receiveTextEdit->moveCursor(QTextCursor::Down, QTextCursor::KeepAnchor);  // 向下才能选中第一行
 		--diff;
 		while (diff > 0) {
-			receiveTextEdit->moveCursor(QTextCursor::Up, QTextCursor::KeepAnchor);  // 所以向上才能选中最后一行
-			
+			receiveTextEdit->moveCursor(QTextCursor::Down, QTextCursor::KeepAnchor);  // 继续向下选中一行
 			--diff;
-		}	
+		}
 		receiveTextEdit->textCursor().removeSelectedText();
 	}
-	receiveTextEdit->moveCursor(QTextCursor::Start);
+	receiveTextEdit->moveCursor(QTextCursor::End);
 	receiveTextEdit->insertPlainText(data);
-	//receiveTextEdit->insertHtml(data);
 }
 
 void MonitorTestTool::onShow(const QStringList &dataList)
@@ -580,7 +598,7 @@ void MonitorTestTool::onDataUpdateTimer()
 		dataShow.append("\n");
 		//showMessage(data);
 		onSeriesChanged(data);
-		onShow(dataShow);
+		onShow(data); // dataShow
 	}
 
 	//if (timer.elapsed() > 200)
@@ -999,7 +1017,7 @@ QGroupBox * MonitorTestTool::createSamplingGroup()
 	maxValueLineEdit = new QLineEdit("100", this);
 	auto tickCountLabel = new QLabel(tr("显示个数: "), this);
 	tickCountSpinBox = new QSpinBox(this);
-	tickCountSpinBox->setRange(10, 1000);
+	tickCountSpinBox->setRange(10, 5000);
 	//tickCountSpinBox->setMinimum(10); 
 	tickCountSpinBox->setSingleStep(5);
 	auto samplingNumLabel = new QLabel(tr("采集个数: "), this);
@@ -1075,8 +1093,8 @@ void MonitorTestTool::setupStatusBar()
 
 void MonitorTestTool::initWidgetsConnections()
 {
-	connect(parityComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
-		this, &MonitorTestTool::filterChanged);
+	//connect(parityComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+	//	this, &MonitorTestTool::filterChanged);
 	connect(runButton, &QPushButton::clicked, this, &MonitorTestTool::openSerialPort);	
 	connect(stopButton, &QPushButton::clicked, this, &MonitorTestTool::closeSerialPort);
 	connect(selectButton, &QPushButton::clicked, this, &MonitorTestTool::selectFile);
