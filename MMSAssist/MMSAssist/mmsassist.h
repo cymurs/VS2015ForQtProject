@@ -12,7 +12,15 @@ public:
 
 private:
 	void initialize();
+	void connectSlots();
+
+private Q_SLOTS:
+	void saveConfig();
+	void importConfig();
+
 
 private:
 	Ui::MMSAssistClass ui;
+
+	QString m_iniFile;
 };
