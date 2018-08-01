@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/MMSAssist">
+        <file>Resources/4.ico</file>
+    </qresource>
+</RCC>
