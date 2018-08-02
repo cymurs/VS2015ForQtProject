@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QWaitCondition>
+#include <QQueue>
 
 template<class Type>
 class ConcurrentQueue
