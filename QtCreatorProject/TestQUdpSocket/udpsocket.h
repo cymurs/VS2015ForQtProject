@@ -3,6 +3,7 @@
 
 #include <QThread>
 #include <QUdpSocket>
+#include <QAtomicInt>
 #include "qdoublebufferedqueue.h"
 #include "concurrentqueue.h"
 
@@ -14,6 +15,13 @@ class UdpSocket : public QThread
     Q_OBJECT
 
 public:
+    enum UdpThreadError {
+        UnavailablePortError,
+
+        UnknownUdpThreadError = -1
+    };
+    Q_ENUM(UdpThreadError)
+
     explicit UdpSocket(quint16 port, QObject *parent = Q_NULLPTR);
     virtual ~UdpSocket();
 
@@ -22,6 +30,9 @@ public:
     void setRemoteConnection(QHostAddress *address, quint16 *port);
     qint64 readDatagram(char *data, qint64 maxSize);
     qint64 writeDatagram(const char *data, qint64 size);
+
+Q_SIGNALS:
+    void error(UdpSocket::UdpThreadError);
 
 protected:
     void run() override;
@@ -35,8 +46,10 @@ private:
     QHostAddress *m_remoteAddress;
     quint16 *m_remotePort;
     quint16 m_localPort;
+    QAtomicInt m_writtenTimes;
     bool m_isRunning;
     bool m_isRead;
+    quintptr m_tid;
 };
 
 #endif // UDPSOCKET_H

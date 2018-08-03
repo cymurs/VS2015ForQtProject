@@ -20,11 +20,11 @@ int main(int argc, char *argv[])
         };
         int sizeArray[] = {28, 24, 27};
         quintptr tid = quintptr(QThread::currentThreadId());
-        for (int i=0; i<100; ++i) {
+        for (int i=0; i<20; ++i) {
             int idx = i % 3;
             QString sentData(QObject::tr("%1---%2").arg(i+1).arg(sentArray[idx]));
             send.writeDatagram(qPrintable(sentData), sentData.length());
-            qDebug() << QObject::tr("[sent%1] %2").arg(tid).arg(sentData);
+//            qDebug() << QObject::tr("[sent*1*:%1] %2").arg(tid).arg(sentData);
 
             QThread::msleep(100);
         }
@@ -39,14 +39,18 @@ int main(int argc, char *argv[])
     quintptr tid = quintptr(QThread::currentThreadId());
     char *recData = new char[512]();
     qint64 recvSize(0);
-    for (int i=0; i<20; ++i) {
+    qint8 count(0);
+    while(count < 10) {
         while(-1 != (recvSize = recv.readDatagram(recData, 512))) {
-            qDebug() << QObject::tr("[%1] %2").arg(tid).arg(recData);
+            qDebug() << QObject::tr("[dest:%1] %2").arg(tid).arg(recData);
             memset(recData, '\0', 512);
+            count = 0;
         }
-        QThread::msleep(100);
-        //qDebug() << "==receive data jump==";
+        QThread::msleep(50);
+//        qDebug() << "==receive data jump==";
+        ++count;
     }
+    delete[] recData;
 
     return a.exec();
 }
