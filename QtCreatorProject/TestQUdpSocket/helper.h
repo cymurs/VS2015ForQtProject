@@ -3,5 +3,6 @@
 
 #include <QRect>
 
+const int DATAGRAM_NUM(10000);
 
 #endif // HELPER_H
