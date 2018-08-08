@@ -20,9 +20,11 @@ Widget::Widget(QWidget *parent) :
 
     m_left = new LeftChild();
     m_left->resize(ui->frame->width(), ui->frame->height());
+    m_left->setButtonSize(ui->frame->width(), ui->frame->height()/4);
     auto leftLayout = new QVBoxLayout(ui->frame);
     leftLayout->addWidget(m_left);
     leftLayout->setMargin(0);
+    leftLayout->setSpacing(0);
     ui->frame->setLayout(leftLayout);
 }
 

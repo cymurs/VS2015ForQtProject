@@ -52,13 +52,13 @@ LeftChild::LeftChild(QWidget *parent) : QWidget(parent)
         changeStyleSheet(m_curPressed);
     });
 
-    auto vLayout = new QVBoxLayout(this);
-    vLayout->addWidget(m_timeSrc);
-    vLayout->addWidget(m_serialPort);
-    vLayout->addWidget(m_network);
-    vLayout->addWidget(m_state);
-    vLayout->setMargin(0);
-    setLayout(vLayout);
+//    auto vLayout = new QVBoxLayout(this);
+//    vLayout->addWidget(m_timeSrc, 1);
+//    vLayout->addWidget(m_serialPort, 1);
+//    vLayout->addWidget(m_network, 1);
+//    vLayout->addWidget(m_state, 1);
+//    vLayout->setMargin(0);
+//    setLayout(vLayout);
 
 //    int w = width();
 //    int h = height();
@@ -67,6 +67,17 @@ LeftChild::LeftChild(QWidget *parent) : QWidget(parent)
 //    m_serialPort->setGeometry(0, btnHeight, w, btnHeight);
 //    m_network->setGeometry(0, btnHeight*2, w, btnHeight);
 //    m_state->setGeometry(0, h-btnHeight, w, btnHeight);
+}
+
+void LeftChild::setButtonSize(int w, int h)
+{
+    int width = (w==0 ? m_timeSrc->width() : w);
+    int height = (h==0 ? m_timeSrc->height() : h);
+    int hLeft = this->height();
+    m_timeSrc->setGeometry(0, 0, width, height);
+    m_serialPort->setGeometry(0, height, width, height);
+    m_network->setGeometry(0, height*2, width, height);
+    m_state->setGeometry(0, hLeft-height, width, height);
 }
 
 void LeftChild::changeStyleSheet(QPushButton *btn)

@@ -15,6 +15,7 @@ class LeftChild : public QWidget
     Q_OBJECT
 public:
     explicit LeftChild(QWidget *parent = nullptr);
+    void setButtonSize(int w, int h);
 
 signals:
 
