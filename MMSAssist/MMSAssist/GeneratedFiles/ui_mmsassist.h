@@ -14,6 +14,7 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QButtonGroup>
 #include <QtWidgets/QCheckBox>
+#include <QtWidgets/QComboBox>
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QHBoxLayout>
@@ -51,16 +52,16 @@ public:
     QPushButton *pushButton_5;
     QLabel *label_9;
     QLineEdit *lineEdit_5;
-    QWidget *widget;
+    QWidget *layoutWidget;
     QHBoxLayout *horizontalLayout;
     QLineEdit *lineEdit_4;
-    QLabel *label_8;
+    QComboBox *comboBox;
 
     void setupUi(QDialog *MMSAssistClass)
     {
         if (MMSAssistClass->objectName().isEmpty())
             MMSAssistClass->setObjectName(QStringLiteral("MMSAssistClass"));
-        MMSAssistClass->resize(700, 342);
+        MMSAssistClass->resize(699, 343);
         label = new QLabel(MMSAssistClass);
         label->setObjectName(QStringLiteral("label"));
         label->setGeometry(QRect(20, 10, 101, 16));
@@ -104,7 +105,7 @@ public:
         label_4->setFont(font1);
         pushButton_2 = new QPushButton(MMSAssistClass);
         pushButton_2->setObjectName(QStringLiteral("pushButton_2"));
-        pushButton_2->setGeometry(QRect(240, 280, 81, 23));
+        pushButton_2->setGeometry(QRect(20, 280, 81, 23));
         pushButton_3 = new QPushButton(MMSAssistClass);
         pushButton_3->setObjectName(QStringLiteral("pushButton_3"));
         pushButton_3->setGeometry(QRect(630, 286, 61, 23));
@@ -131,33 +132,34 @@ public:
         label_7->setGeometry(QRect(20, 160, 101, 16));
         pushButton_4 = new QPushButton(MMSAssistClass);
         pushButton_4->setObjectName(QStringLiteral("pushButton_4"));
-        pushButton_4->setGeometry(QRect(20, 280, 91, 23));
+        pushButton_4->setGeometry(QRect(20, 400, 91, 23));
         pushButton_5 = new QPushButton(MMSAssistClass);
         pushButton_5->setObjectName(QStringLiteral("pushButton_5"));
-        pushButton_5->setGeometry(QRect(130, 280, 91, 23));
+        pushButton_5->setGeometry(QRect(130, 400, 91, 23));
         label_9 = new QLabel(MMSAssistClass);
         label_9->setObjectName(QStringLiteral("label_9"));
         label_9->setGeometry(QRect(20, 190, 141, 16));
         lineEdit_5 = new QLineEdit(MMSAssistClass);
         lineEdit_5->setObjectName(QStringLiteral("lineEdit_5"));
         lineEdit_5->setGeometry(QRect(20, 220, 301, 20));
-        widget = new QWidget(MMSAssistClass);
-        widget->setObjectName(QStringLiteral("widget"));
-        widget->setGeometry(QRect(160, 160, 153, 22));
-        horizontalLayout = new QHBoxLayout(widget);
+        layoutWidget = new QWidget(MMSAssistClass);
+        layoutWidget->setObjectName(QStringLiteral("layoutWidget"));
+        layoutWidget->setGeometry(QRect(160, 160, 153, 22));
+        horizontalLayout = new QHBoxLayout(layoutWidget);
         horizontalLayout->setSpacing(6);
         horizontalLayout->setContentsMargins(11, 11, 11, 11);
         horizontalLayout->setObjectName(QStringLiteral("horizontalLayout"));
         horizontalLayout->setContentsMargins(0, 0, 0, 0);
-        lineEdit_4 = new QLineEdit(widget);
+        lineEdit_4 = new QLineEdit(layoutWidget);
         lineEdit_4->setObjectName(QStringLiteral("lineEdit_4"));
+        lineEdit_4->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
 
         horizontalLayout->addWidget(lineEdit_4);
 
-        label_8 = new QLabel(widget);
-        label_8->setObjectName(QStringLiteral("label_8"));
+        comboBox = new QComboBox(layoutWidget);
+        comboBox->setObjectName(QStringLiteral("comboBox"));
 
-        horizontalLayout->addWidget(label_8);
+        horizontalLayout->addWidget(comboBox);
 
 
         retranslateUi(MMSAssistClass);
@@ -191,7 +193,14 @@ public:
         pushButton_4->setText(QApplication::translate("MMSAssistClass", "Import Config", Q_NULLPTR));
         pushButton_5->setText(QApplication::translate("MMSAssistClass", "Export Config", Q_NULLPTR));
         label_9->setText(QApplication::translate("MMSAssistClass", "File Storage Directory:", Q_NULLPTR));
-        label_8->setText(QApplication::translate("MMSAssistClass", "KB", Q_NULLPTR));
+        lineEdit_5->setText(QApplication::translate("MMSAssistClass", "E:\\Store", Q_NULLPTR));
+        lineEdit_4->setText(QApplication::translate("MMSAssistClass", "1024", Q_NULLPTR));
+        comboBox->clear();
+        comboBox->insertItems(0, QStringList()
+         << QApplication::translate("MMSAssistClass", "KB", Q_NULLPTR)
+         << QApplication::translate("MMSAssistClass", "MB", Q_NULLPTR)
+         << QApplication::translate("MMSAssistClass", "GB", Q_NULLPTR)
+        );
     } // retranslateUi
 
 };

@@ -236,7 +236,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Save Per Hour</string>
+    <string>Save Per Minute</string>
    </property>
    <property name="checked">
     <bool>true</bool>
@@ -252,7 +252,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Save Per Day</string>
+    <string>Save Per Hour</string>
    </property>
    <property name="checked">
     <bool>true</bool>
