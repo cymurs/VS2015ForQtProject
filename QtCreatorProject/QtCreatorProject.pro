@@ -4,4 +4,5 @@ SUBDIRS += \
     TestQTextEditInheritQThread \
     TestQSerialPort \
     TestQUdpSocket \
-    TestWidgetsSwitch
+    TestWidgetsSwitch \
+    TestWidgetsCompose
