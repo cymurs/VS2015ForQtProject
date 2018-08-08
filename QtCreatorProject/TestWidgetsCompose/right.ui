@@ -1,21 +1,19 @@
-<ui version="4.0" >
- <author></author>
- <comment></comment>
- <exportmacro></exportmacro>
- <class>Form</class>
- <widget class="QWidget" name="Form" >
-  <property name="geometry" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RightChild</class>
+ <widget class="QWidget" name="RightChild">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>361</width>
+    <height>255</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>Form</string>
   </property>
  </widget>
- <pixmapfunction></pixmapfunction>
+ <resources/>
  <connections/>
 </ui>

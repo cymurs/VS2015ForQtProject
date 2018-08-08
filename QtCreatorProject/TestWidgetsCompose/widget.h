@@ -3,6 +3,10 @@
 
 #include <QWidget>
 
+class TopChild;
+class LeftChild;
+class RightChild;
+
 namespace Ui {
 class Widget;
 }
@@ -17,6 +21,9 @@ public:
 
 private:
     Ui::Widget *ui;
+    TopChild *m_top;
+    LeftChild *m_left;
+    RightChild *m_right;
 };
 
 #endif // WIDGET_H

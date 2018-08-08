@@ -1,7 +1,14 @@
 #ifndef LEFTCHILD_H
 #define LEFTCHILD_H
 
+#pragma execution_character_set("utf-8")  // 解决界面显示中文乱码
 #include <QWidget>
+#include <QPushButton>
+
+
+namespace Ui {
+class LeftChild;
+}
 
 class LeftChild : public QWidget
 {
@@ -12,6 +19,19 @@ public:
 signals:
 
 public slots:
+
+
+private:
+    void changeStyleSheet(QPushButton *btn);
+
+private:
+    Ui::LeftChild *ui;
+    QPushButton *m_timeSrc;
+    QPushButton *m_serialPort;
+    QPushButton *m_network;
+    QPushButton *m_state;
+    QPushButton *m_curPressed;
 };
+
 
 #endif // LEFTCHILD_H

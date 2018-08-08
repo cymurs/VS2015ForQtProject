@@ -25,10 +25,26 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-        widget.cpp
+        widget.cpp \
+    topchild.cpp \
+    leftchild.cpp \
+    rightchild.cpp \
+    qss.cpp
 
 HEADERS += \
-        widget.h
+        widget.h \
+    topchild.h \
+    leftchild.h \
+    rightchild.h \
+    qss.h
 
 FORMS += \
-        main.ui
+        main.ui \
+    top.ui \
+    left.ui \
+    right.ui
+
+RESOURCES += \
+    picture.qrc
+
+
