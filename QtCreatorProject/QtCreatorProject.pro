@@ -3,4 +3,5 @@ TEMPLATE = subdirs
 SUBDIRS += \
     TestQTextEditInheritQThread \
     TestQSerialPort \
-    TestQUdpSocket
+    TestQUdpSocket \
+    TestWidgetsSwitch
