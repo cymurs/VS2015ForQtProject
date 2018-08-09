@@ -29,20 +29,23 @@ SOURCES += \
     topchild.cpp \
     leftchild.cpp \
     rightchild.cpp \
-    qss.cpp
+    qss.cpp \
+    stateparam.cpp
 
 HEADERS += \
         widget.h \
     topchild.h \
     leftchild.h \
     rightchild.h \
-    qss.h
+    qss.h \
+    stateparam.h
 
 FORMS += \
         main.ui \
     top.ui \
     left.ui \
-    right.ui
+    right.ui \
+    stateparam.ui
 
 RESOURCES += \
     picture.qrc

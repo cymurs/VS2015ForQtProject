@@ -2,6 +2,7 @@
 #define RIGHTCHILD_H
 
 #include <QWidget>
+#include <QStackedLayout>
 
 namespace Ui {
 class RightChild;
@@ -19,6 +20,7 @@ public slots:
 
 private:
     Ui::RightChild *ui;
+    QStackedLayout *m_baseLayout;
 };
 
 #endif // RIGHTCHILD_H
