@@ -3,6 +3,7 @@
 #include "qss.h"
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QResizeEvent>
 
 
 LeftChild::LeftChild(QWidget *parent) : QWidget(parent)
@@ -69,15 +70,26 @@ LeftChild::LeftChild(QWidget *parent) : QWidget(parent)
 //    m_state->setGeometry(0, h-btnHeight, w, btnHeight);
 }
 
-void LeftChild::setButtonSize(int w, int h)
+//void LeftChild::setButtonSize(int w, int h)
+//{
+//    int width = (w==0 ? m_timeSrc->width() : w);
+//    int height = (h==0 ? m_timeSrc->height() : h);
+//    int hLeft = this->height();
+//    m_timeSrc->setGeometry(0, 0, width, height);
+//    m_serialPort->setGeometry(0, height, width, height);
+//    m_network->setGeometry(0, height*2, width, height);
+//    m_state->setGeometry(0, hLeft-height, width, height);
+//}
+
+void LeftChild::resizeEvent(QResizeEvent *event)
 {
-    int width = (w==0 ? m_timeSrc->width() : w);
-    int height = (h==0 ? m_timeSrc->height() : h);
-    int hLeft = this->height();
-    m_timeSrc->setGeometry(0, 0, width, height);
-    m_serialPort->setGeometry(0, height, width, height);
-    m_network->setGeometry(0, height*2, width, height);
-    m_state->setGeometry(0, hLeft-height, width, height);
+    QSize s = event->size();
+    int w = s.width();
+    int h = s.height() / 4;
+    m_timeSrc->setGeometry(0, 0, w, h);
+    m_serialPort->setGeometry(0, h, w, h);
+    m_network->setGeometry(0, h*2, w, h);
+    m_state->setGeometry(0, h*3, w, h);
 }
 
 void LeftChild::changeStyleSheet(QPushButton *btn)

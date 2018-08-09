@@ -19,6 +19,10 @@ public:
     explicit Widget(QWidget *parent = 0);
     ~Widget();
 
+protected:
+    virtual void resizeEvent(QResizeEvent *event) override;
+
+
 private:
     Ui::Widget *ui;
     TopChild *m_top;

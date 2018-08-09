@@ -19,6 +19,8 @@ signals:
 
 public slots:
 
+protected:
+    virtual void resizeEvent(QResizeEvent *event) override;
 
 private:
     Ui::TopChild *ui;

@@ -15,12 +15,14 @@ class LeftChild : public QWidget
     Q_OBJECT
 public:
     explicit LeftChild(QWidget *parent = nullptr);
-    void setButtonSize(int w, int h);
+//    void setButtonSize(int w, int h);
 
 signals:
 
 public slots:
 
+protected:
+    virtual void resizeEvent(QResizeEvent *event) override;
 
 private:
     void changeStyleSheet(QPushButton *btn);
