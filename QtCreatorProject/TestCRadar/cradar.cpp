@@ -39,6 +39,14 @@ void CRadar::paintEvent(QPaintEvent *event)
     painter.drawEllipse(m_drawArea.center(),len/6,len/6);
     painter.drawEllipse(m_drawArea.center(),len/12,len/12);
 
+    //四个刻度
+    int fontWidth = QFontMetrics(QFont()).width("0");
+    int fontHeight = QFontMetrics(QFont()).height();
+    painter.drawText(QPoint(width()/2-fontWidth/2, fontHeight*2/3), "0");
+    painter.drawText(QPoint(width()-fontWidth*2, height()/2+fontHeight/3), "90");
+    painter.drawText(QPoint(width()/2-fontWidth*1.5, height()), "180");
+    painter.drawText(QPoint(0, height()/2+fontHeight/3), "270");
+
     //转动部分
         //---//线
 //    qreal x = m_drawArea.center().x() + (qreal)len/2 * cos(-m_pieRotate*3.14159/180);
