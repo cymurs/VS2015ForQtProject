@@ -5,4 +5,6 @@ SUBDIRS += \
     TestQSerialPort \
     TestQUdpSocket \
     TestWidgetsSwitch \
-    TestWidgetsCompose
+    TestWidgetsCompose \
+    B2068BackgroundInterface \
+    TestCRadar
