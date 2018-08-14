@@ -42,9 +42,9 @@ void CRadar::paintEvent(QPaintEvent *event)
     //四个刻度
     int fontWidth = QFontMetrics(QFont()).width("0");
     int fontHeight = QFontMetrics(QFont()).height();
-    painter.drawText(QPoint(width()/2-fontWidth/2, fontHeight*2/3), "0");
-    painter.drawText(QPoint(width()-fontWidth*2, height()/2+fontHeight/3), "90");
-    painter.drawText(QPoint(width()/2-fontWidth*1.5, height()), "180");
+    painter.drawText(QPoint(width()/2-fontWidth/2, fontHeight), "0");
+    painter.drawText(QPoint(width()-fontWidth*3, height()/2+fontHeight/3), "90");
+    painter.drawText(QPoint(width()/2-fontWidth*1.5, height()-fontHeight/3), "180");
     painter.drawText(QPoint(0, height()/2+fontHeight/3), "270");
 
     //转动部分
@@ -90,5 +90,6 @@ void CRadar::resizeEvent(QResizeEvent *event)
         m_drawArea = QRect(0,(height() - width())/2,width(),width());
     }
 
-    m_drawArea.adjust(10,10,-10,-10);
+//    m_drawArea.adjust(10,10,-10,-10);
+    m_drawArea.adjust(20,20,-20,-20);
 }
