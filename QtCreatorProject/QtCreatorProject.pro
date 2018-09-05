@@ -7,4 +7,5 @@ SUBDIRS += \
     TestWidgetsSwitch \
     TestWidgetsCompose \
     B2068BackgroundInterface \
-    TestCRadar
+    TestCRadar \
+    TestSignal
