@@ -8,4 +8,5 @@ SUBDIRS += \
     TestWidgetsCompose \
     B2068BackgroundInterface \
     TestCRadar \
-    TestSignal
+    TestSignal \
+    TestDoubleSerialPort
