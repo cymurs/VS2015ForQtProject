@@ -1,2 +1,6 @@
-<!DOCTYPE RCC>
-<RCC version="1.0"/>
+<RCC>
+    <qresource prefix="/test">
+        <file>images/timg.jpg</file>
+        <file>images/bg_update.png</file>
+    </qresource>
+</RCC>
